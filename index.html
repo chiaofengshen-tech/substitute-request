@@ -387,7 +387,8 @@ function generateText() {
 
   const lines = items.map((it, i) => {
     const prefix = items.length > 1 ? `${i + 1}. ` : '';
-    return `${prefix}日期：${it.date}\n　星期：${it.weekday}\n　節次：${it.period}\n　班級：${it.className}\n　科目：${formatSubjects(it.subject)}\n　授課教師：${it.teacher ? it.teacher + '老師' : ''}`;
+    const indent = items.length > 1 ? '　' : '';
+    return `${prefix}日期：${it.date}\n${indent}星期：${it.weekday}\n${indent}節次：${it.period}\n${indent}班級：${it.className}\n${indent}科目：${formatSubjects(it.subject)}\n${indent}授課教師：${it.teacher ? it.teacher + '老師' : ''}`;
   }).join('\n\n');
 
   const text = `${subTeacher}您好，
