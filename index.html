@@ -270,7 +270,7 @@ function addItem() {
     <div class="item-grid">
       <div>
         <label class="field-label">日期</label>
-        <input type="text" class="f-date" placeholder="例：6/28 或 9/1～9/5">
+        <input type="text" class="f-date" placeholder="例：623 或 9/1～9/5">
       </div>
       <div>
         <label class="field-label">星期</label>
@@ -278,7 +278,7 @@ function addItem() {
       </div>
       <div class="period-only">
         <label class="field-label">節次</label>
-        <input type="text" class="f-period" placeholder="例：第3節 或 第2、5節">
+        <input type="text" class="f-period" placeholder="例：136 或 1-5">
       </div>
       <div class="class-wrapper">
         <label class="field-label">班級</label>
@@ -333,7 +333,7 @@ function resolveDate(month, day) {
 }
 
 function guessWeekday(str) {
-  const s = str.trim();
+  const s = formatDateText(str.trim());
 
   const rangeMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})\s*[~～]\s*(\d{1,2})[\/\-](\d{1,2})$/);
   if (rangeMatch) {
@@ -403,6 +403,38 @@ function formatSubjects(raw) {
   return tokens ? tokens.join('、') : s;
 }
 
+function expandCompactDateToken(token) {
+  if (!/^\d{3,4}$/.test(token)) return token;
+  const day = token.slice(-2);
+  const month = token.slice(0, -2);
+  const dayNum = Number(day);
+  const monthNum = Number(month);
+  if (monthNum < 1 || monthNum > 12 || dayNum < 1 || dayNum > 31) return token;
+  return `${monthNum}/${dayNum}`;
+}
+
+function formatDateText(raw) {
+  const s = raw.trim();
+  if (!s) return '';
+  return s.split(/([～~、,，])/).map(part => expandCompactDateToken(part)).join('');
+}
+
+function expandCompactPeriodToken(token) {
+  if (/^\d{2,}$/.test(token)) {
+    return token.split('').join('、');
+  }
+  return token;
+}
+
+function formatPeriodText(raw) {
+  const s = raw.trim();
+  if (!s) return '';
+  if (/[一-龥]/.test(s)) return s;
+  const parts = s.split(/[、,，]/).map(p => p.trim()).filter(Boolean);
+  const expanded = parts.map(expandCompactPeriodToken).join('、');
+  return `第${expanded}節`;
+}
+
 function getItems() {
   const blocks = document.querySelectorAll('#itemList .item-block');
   return Array.from(blocks).map(block => {
@@ -419,12 +451,17 @@ function getItems() {
   });
 }
 
-function formatItemLine(it) {
+function formatItemFields(it) {
   const teacherText = it.teacher ? `${it.teacher}老師` : '';
-  if (it.type === 'day') {
-    return `${it.date}（${it.weekday}）日代｜${it.className}｜授課教師：${teacherText}`;
-  }
-  return `${it.date}（${it.weekday}）${it.period}｜${it.className}${formatSubjects(it.subject)}｜授課教師：${teacherText}`;
+  const fields = [
+    `日期：${formatDateText(it.date)}`,
+    `星期：${it.weekday}`
+  ];
+  if (it.type !== 'day') fields.push(`節次：${formatPeriodText(it.period)}`);
+  fields.push(`班級：${it.className}`);
+  if (it.type !== 'day') fields.push(`科目：${formatSubjects(it.subject)}`);
+  fields.push(`授課教師：${teacherText}`);
+  return fields;
 }
 
 function generateText() {
@@ -434,8 +471,11 @@ function generateText() {
 
   const lines = items.map((it, i) => {
     const prefix = items.length > 1 ? `${i + 1}. ` : '';
-    return `${prefix}${formatItemLine(it)}`;
-  }).join('\n');
+    const indent = items.length > 1 ? '　' : '';
+    return formatItemFields(it)
+      .map((line, idx) => (idx === 0 ? prefix : indent) + line)
+      .join('\n');
+  }).join('\n\n');
 
   const text = `${subTeacher}您好，
 想請問您以下時間是否方便幫忙代課？
