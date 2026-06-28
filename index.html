@@ -103,6 +103,24 @@
   .item-grid .full {
     grid-column: 1 / -1;
   }
+  .type-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 4px;
+    font-size: 0.9rem;
+  }
+  .type-row label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    font-weight: 400;
+    cursor: pointer;
+  }
+  .type-row input[type="radio"] {
+    width: auto;
+    margin: 0;
+  }
   .remove-btn {
     flex: 0 0 auto;
     width: 32px;
@@ -227,6 +245,15 @@
 <script>
 let itemCount = 0;
 
+function updateTypeVisibility(block) {
+  const checked = block.querySelector('.type-row input[type="radio"]:checked');
+  const isDay = checked && checked.value === 'day';
+  block.querySelectorAll('.period-only').forEach(el => {
+    el.style.display = isDay ? 'none' : '';
+  });
+  block.querySelector('.class-wrapper').classList.toggle('full', isDay);
+}
+
 function addItem() {
   itemCount++;
   const block = document.createElement('div');
@@ -235,6 +262,10 @@ function addItem() {
     <div class="item-header">
       <span class="item-title">代課項目</span>
       <button type="button" class="remove-btn" title="刪除這筆">×</button>
+    </div>
+    <div class="type-row">
+      <label><input type="radio" name="type-${itemCount}" value="period" checked> 節代</label>
+      <label><input type="radio" name="type-${itemCount}" value="day"> 日代</label>
     </div>
     <div class="item-grid">
       <div>
@@ -245,15 +276,15 @@ function addItem() {
         <label class="field-label">星期</label>
         <input type="text" class="f-weekday" placeholder="例：三 或 一～五">
       </div>
-      <div>
+      <div class="period-only">
         <label class="field-label">節次</label>
         <input type="text" class="f-period" placeholder="例：第3節 或 第2、5節">
       </div>
-      <div>
+      <div class="class-wrapper">
         <label class="field-label">班級</label>
         <input type="text" class="f-class" placeholder="例：201">
       </div>
-      <div class="full">
+      <div class="full period-only">
         <label class="field-label">科目</label>
         <input type="text" class="f-subject" placeholder="例：生活、健康">
       </div>
@@ -266,6 +297,10 @@ function addItem() {
   document.getElementById('itemList').appendChild(block);
   block.querySelector('.remove-btn').addEventListener('click', () => {
     if (document.querySelectorAll('#itemList .item-block').length > 1) block.remove();
+  });
+
+  block.querySelectorAll('.type-row input[type="radio"]').forEach(radio => {
+    radio.addEventListener('change', () => updateTypeVisibility(block));
   });
 
   const dateInput = block.querySelector('.f-date');
@@ -370,14 +405,26 @@ function formatSubjects(raw) {
 
 function getItems() {
   const blocks = document.querySelectorAll('#itemList .item-block');
-  return Array.from(blocks).map(block => ({
-    date: block.querySelector('.f-date').value.trim(),
-    weekday: block.querySelector('.f-weekday').value.trim(),
-    period: block.querySelector('.f-period').value.trim(),
-    className: block.querySelector('.f-class').value.trim(),
-    subject: block.querySelector('.f-subject').value.trim(),
-    teacher: block.querySelector('.f-teacher').value.trim()
-  }));
+  return Array.from(blocks).map(block => {
+    const checked = block.querySelector('.type-row input[type="radio"]:checked');
+    return {
+      type: checked ? checked.value : 'period',
+      date: block.querySelector('.f-date').value.trim(),
+      weekday: block.querySelector('.f-weekday').value.trim(),
+      period: block.querySelector('.f-period').value.trim(),
+      className: block.querySelector('.f-class').value.trim(),
+      subject: block.querySelector('.f-subject').value.trim(),
+      teacher: block.querySelector('.f-teacher').value.trim()
+    };
+  });
+}
+
+function formatItemLine(it) {
+  const teacherText = it.teacher ? `${it.teacher}老師` : '';
+  if (it.type === 'day') {
+    return `${it.date}（${it.weekday}）日代｜${it.className}｜授課教師：${teacherText}`;
+  }
+  return `${it.date}（${it.weekday}）${it.period}｜${it.className}${formatSubjects(it.subject)}｜授課教師：${teacherText}`;
 }
 
 function generateText() {
@@ -387,9 +434,8 @@ function generateText() {
 
   const lines = items.map((it, i) => {
     const prefix = items.length > 1 ? `${i + 1}. ` : '';
-    const indent = items.length > 1 ? '　' : '';
-    return `${prefix}日期：${it.date}\n${indent}星期：${it.weekday}\n${indent}節次：${it.period}\n${indent}班級：${it.className}\n${indent}科目：${formatSubjects(it.subject)}\n${indent}授課教師：${it.teacher ? it.teacher + '老師' : ''}`;
-  }).join('\n\n');
+    return `${prefix}${formatItemLine(it)}`;
+  }).join('\n');
 
   const text = `${subTeacher}您好，
 想請問您以下時間是否方便幫忙代課？
