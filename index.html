@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>代課詢問文字產生器</title>
+<title>代課詢問 ＆ 追蹤管理</title>
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%237fb3d5'/%3E%3Ctext x='50' y='62' font-size='48' text-anchor='middle' fill='white' font-family='sans-serif'%3E代%3C/text%3E%3C/svg%3E">
 <style>
   :root {
@@ -13,6 +13,11 @@
     --blue-dark: #5c95bb;
     --text: #3a3a3a;
     --border: #e0ddd4;
+    --muted: #888;
+    --success: #4caf82;
+    --error: #e05c5c;
+    --warn-bg: #fff8e6;
+    --warn-border: #f0c96e;
   }
   * { box-sizing: border-box; }
   body {
@@ -22,10 +27,7 @@
     color: var(--text);
     padding: 16px;
   }
-  .container {
-    max-width: 560px;
-    margin: 0 auto;
-  }
+  .container { max-width: 580px; margin: 0 auto; }
   h1 {
     font-size: 1.3rem;
     text-align: center;
@@ -35,8 +37,17 @@
   .subtitle {
     text-align: center;
     font-size: 0.85rem;
-    color: #888;
-    margin-bottom: 20px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .notice {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    color: #7a6010;
+    margin-bottom: 12px;
   }
   .card {
     background: var(--card);
@@ -57,11 +68,11 @@
   label.field-label {
     font-size: 0.78rem;
     font-weight: 400;
-    color: #888;
+    color: var(--muted);
     margin-top: 8px;
     margin-bottom: 4px;
   }
-  input {
+  input, select, textarea {
     width: 100%;
     padding: 10px 12px;
     font-size: 1rem;
@@ -69,11 +80,18 @@
     border-radius: 8px;
     background: #fafaf8;
     color: var(--text);
+    font-family: inherit;
   }
-  input:focus {
+  input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: var(--blue);
     background: #fff;
+  }
+  select { appearance: auto; }
+  .row2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
   }
   .item-block {
     margin-top: 10px;
@@ -82,13 +100,12 @@
     border-radius: 10px;
     background: #fafaf8;
   }
-  .item-block:first-of-type {
-    margin-top: 0;
-  }
+  .item-block:first-of-type { margin-top: 0; }
   .item-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 8px;
   }
   .item-title {
     font-size: 0.85rem;
@@ -100,13 +117,11 @@
     grid-template-columns: 1fr 1fr;
     gap: 0 10px;
   }
-  .item-grid .full {
-    grid-column: 1 / -1;
-  }
+  .item-grid .full { grid-column: 1 / -1; }
   .type-row {
     display: flex;
     gap: 16px;
-    margin-top: 4px;
+    margin-bottom: 4px;
     font-size: 0.9rem;
   }
   .type-row label {
@@ -117,10 +132,7 @@
     font-weight: 400;
     cursor: pointer;
   }
-  .type-row input[type="radio"] {
-    width: auto;
-    margin: 0;
-  }
+  .type-row input[type="radio"] { width: auto; margin: 0; }
   .remove-btn {
     flex: 0 0 auto;
     width: 32px;
@@ -135,6 +147,32 @@
     border: none;
     cursor: pointer;
   }
+  .sys-fields {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+  }
+  .sys-label {
+    font-size: 0.72rem;
+    color: #aaa;
+    margin-bottom: 4px;
+    font-weight: 400;
+  }
+  .extra-fields-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+    cursor: pointer;
+    font-size: 0.78rem;
+    color: var(--muted);
+    user-select: none;
+  }
+  .extra-fields-toggle:hover { color: var(--blue-dark); }
+  .extra-fields { display: none; }
+  .extra-fields.open { display: block; }
   .btn-add {
     margin-top: 10px;
     width: 100%;
@@ -163,34 +201,21 @@
     transition: opacity 0.15s;
   }
   button:active { opacity: 0.8; }
-  .btn-primary {
-    background: var(--blue);
-    color: white;
-  }
-  .btn-secondary {
-    background: #eee;
-    color: var(--text);
-  }
-  .output-wrap {
-    position: relative;
-  }
+  .btn-primary { background: var(--blue); color: white; }
+  .btn-secondary { background: #eee; color: var(--text); }
+  .btn-success { background: var(--success); color: white; }
+  .btn-full { flex: none; width: 100%; }
+  .output-wrap { position: relative; }
   textarea#output {
-    width: 100%;
-    min-height: 220px;
-    font-size: 1rem;
+    min-height: 200px;
     line-height: 1.6;
-    padding: 14px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: #fafaf8;
-    color: var(--text);
     resize: vertical;
-    font-family: inherit;
+    readonly: true;
   }
   .output-buttons {
     display: flex;
     gap: 10px;
-    margin-top: 12px;
+    margin-top: 10px;
   }
   .toast {
     position: fixed;
@@ -205,57 +230,249 @@
     opacity: 0;
     transition: opacity 0.2s, transform 0.2s;
     pointer-events: none;
+    z-index: 999;
+    max-width: 80vw;
+    text-align: center;
   }
-  .toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--error); }
+
+  /* Settings card */
+  details.settings-card summary {
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--blue-dark);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  details.settings-card summary::before {
+    content: '▶';
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+  }
+  details.settings-card[open] summary::before { transform: rotate(90deg); }
+  details.settings-card .settings-body { margin-top: 14px; }
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+    background: #ccc;
+  }
+  .status-dot.ok { background: var(--success); }
+  .status-dot.err { background: var(--error); }
+  .status-line {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+  .url-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .url-row input { flex: 1; }
+  .url-row button { flex: 0 0 auto; padding: 10px 14px; font-size: 0.85rem; }
+
+  /* Tracking list */
+  .list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--blue-dark);
+  }
+  .list-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .list-controls input {
+    width: 130px;
+    padding: 7px 10px;
+    font-size: 0.85rem;
+  }
+  .list-controls button {
+    flex: 0 0 auto;
+    padding: 7px 12px;
+    font-size: 0.85rem;
+    background: #eaf3f8;
+    color: var(--blue-dark);
+    border: 1px solid var(--blue);
+  }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    min-width: 700px;
+  }
+  th {
+    background: #eaf3f8;
+    color: var(--blue-dark);
+    font-weight: 600;
+    padding: 6px 8px;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 2px solid var(--blue);
+  }
+  td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    white-space: nowrap;
+  }
+  tr:hover td { background: #f0f8ff; }
+  .status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge-asked { background: #e8f4fd; color: #5c95bb; }
+  .badge-done { background: #e8f9f0; color: #4caf82; }
+  .badge-cancel { background: #fdeaea; color: #e05c5c; }
+  .empty-state {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    padding: 30px 0;
+  }
+  .count-label {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 8px;
   }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>📚 代課詢問文字產生器</h1>
-  <p class="subtitle">產生 LINE 詢問訊息，先詢問代課老師是否方便</p>
+  <h1>📚 代課詢問 ＆ 追蹤管理</h1>
+  <p class="subtitle">產生 LINE 詢問訊息，並同步記錄到 Google Sheets</p>
 
+  <div class="notice">⚠️ 代課資料儲存在 Google Sheets，請確認 Web App 連線正常。</div>
+
+  <!-- Settings -->
+  <details class="card settings-card" id="settingsCard">
+    <summary>⚙️ Google Sheets 連線設定</summary>
+    <div class="settings-body">
+      <label class="field-label">Web App URL（部署後取得）</label>
+      <div class="url-row">
+        <input id="gasUrl" type="url" placeholder="https://script.google.com/macros/s/...">
+        <button id="saveUrlBtn" class="btn-primary" style="flex:0 0 auto;width:auto;padding:10px 16px;font-size:0.9rem;">儲存</button>
+      </div>
+      <div class="status-line" id="statusLine"><span class="status-dot" id="statusDot"></span><span id="statusText">尚未設定 Web App URL</span></div>
+    </div>
+  </details>
+
+  <!-- Form -->
   <div class="card">
-    <label for="subTeacher">代課老師</label>
-    <input id="subTeacher" type="text" placeholder="例：王">
+    <div class="row2">
+      <div>
+        <label for="subTeacher">代課老師</label>
+        <input id="subTeacher" type="text" placeholder="例：王">
+      </div>
+      <div>
+        <label for="settleMonth">結算月份</label>
+        <input id="settleMonth" type="text" placeholder="例：114年6月">
+      </div>
+    </div>
 
     <label>代課項目（可新增多筆）</label>
     <div id="itemList"></div>
     <button type="button" class="btn-add" id="addItemBtn">＋ 新增一筆</button>
 
     <div class="btn-row">
-      <button class="btn-primary" id="generateBtn">產生文字</button>
-      <button class="btn-secondary" id="clearBtn">清空</button>
+      <button class="btn-success btn-full" id="copyAndSaveBtn" style="flex:2;">📋 複製詢問訊息並加入追蹤清單</button>
+      <button class="btn-secondary" id="clearBtn" style="flex:1;">清空</button>
     </div>
   </div>
 
+  <!-- Output -->
   <div class="card output-wrap">
-    <label for="output">產生結果</label>
-    <textarea id="output" readonly placeholder="按下「產生文字」後，結果會顯示在這裡"></textarea>
+    <label for="output">詢問訊息預覽</label>
+    <textarea id="output" readonly placeholder="按下「複製詢問訊息並加入追蹤清單」後，訊息會顯示在這裡"></textarea>
     <div class="output-buttons">
-      <button class="btn-primary" id="copyBtn">複製文字</button>
+      <button class="btn-secondary" id="generateBtn">重新產生訊息</button>
+      <button class="btn-primary" id="copyBtn">僅複製</button>
     </div>
+  </div>
+
+  <!-- Tracking List -->
+  <div class="card">
+    <div class="list-header">
+      <span class="section-title">📋 代課追蹤清單</span>
+      <div class="list-controls">
+        <input id="filterMonth" placeholder="篩選月份…" title="輸入月份關鍵字篩選">
+        <button id="refreshBtn">↻ 重新整理</button>
+      </div>
+    </div>
+    <div id="trackingList"><p class="empty-state">請先設定 Web App URL，再按重新整理。</p></div>
+    <div class="count-label" id="countLabel"></div>
   </div>
 </div>
 
-<div class="toast" id="toast">已複製</div>
+<div class="toast" id="toast"></div>
 
 <script>
+/* ── constants ── */
+const GAS_URL_KEY = 'gasWebAppUrl';
+const LIST_COLS = ['狀態','結算月份','代課類型','代課教師','日期','星期','節次或日代','班級','科目','授課教師','代課節數','代課日數','導師日數','假別','摘要','備註','建立時間','更新時間'];
+const LEAVE_OPTIONS = ['','公','事','病','喪','身心調適假','其他'];
+
+/* ── settings ── */
+let gasUrl = localStorage.getItem(GAS_URL_KEY) || '';
+
+function loadSettings() {
+  const input = document.getElementById('gasUrl');
+  input.value = gasUrl;
+  updateStatusDot(gasUrl ? 'idle' : 'none');
+}
+
+function saveSettings() {
+  gasUrl = document.getElementById('gasUrl').value.trim();
+  localStorage.setItem(GAS_URL_KEY, gasUrl);
+  updateStatusDot(gasUrl ? 'idle' : 'none');
+  showToast('URL 已儲存');
+  if (gasUrl) fetchAndRender();
+}
+
+function updateStatusDot(state) {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  dot.className = 'status-dot';
+  if (state === 'ok') { dot.classList.add('ok'); text.textContent = '連線正常'; }
+  else if (state === 'err') { dot.classList.add('err'); text.textContent = '連線失敗，請確認 URL 或部署設定'; }
+  else if (state === 'idle') { text.textContent = 'URL 已設定，尚未測試'; }
+  else { text.textContent = '尚未設定 Web App URL'; }
+}
+
+/* ── type management ── */
 let itemCount = 0;
 
 function updateTypeVisibility(block) {
   const checked = block.querySelector('.type-row input[type="radio"]:checked');
   const isDay = checked && checked.value === 'day';
-  block.querySelectorAll('.period-only').forEach(el => {
-    el.style.display = isDay ? 'none' : '';
-  });
+  block.querySelectorAll('.period-only').forEach(el => el.style.display = isDay ? 'none' : '');
+  block.querySelectorAll('.day-only').forEach(el => el.style.display = isDay ? '' : 'none');
   block.querySelector('.class-wrapper').classList.toggle('full', isDay);
 }
 
+/* ── add item ── */
 function addItem() {
   itemCount++;
+  const id = itemCount;
   const block = document.createElement('div');
   block.className = 'item-block';
   block.innerHTML = `
@@ -264,8 +481,8 @@ function addItem() {
       <button type="button" class="remove-btn" title="刪除這筆">×</button>
     </div>
     <div class="type-row">
-      <label><input type="radio" name="type-${itemCount}" value="period" checked> 節代</label>
-      <label><input type="radio" name="type-${itemCount}" value="day"> 日代</label>
+      <label><input type="radio" name="type-${id}" value="period" checked> 節代</label>
+      <label><input type="radio" name="type-${id}" value="day"> 日代</label>
     </div>
     <div class="item-grid">
       <div>
@@ -293,136 +510,142 @@ function addItem() {
         <input type="text" class="f-teacher" placeholder="例：陳">
       </div>
     </div>
+
+    <div class="sys-fields">
+      <div class="sys-label">系統欄位（可修改）</div>
+      <div class="item-grid">
+        <div class="period-only">
+          <label class="field-label">代課節數</label>
+          <input type="number" class="f-period-count" placeholder="自動計算" min="0">
+        </div>
+        <div class="day-only" style="display:none">
+          <label class="field-label">代課日數</label>
+          <input type="number" class="f-day-count" value="1" min="0">
+        </div>
+        <div class="day-only" style="display:none">
+          <label class="field-label">導師日數</label>
+          <input type="number" class="f-mentor-count" value="0" min="0">
+        </div>
+      </div>
+    </div>
+
+    <div class="extra-fields-toggle" data-target="extra-${id}">
+      ▸ 月底補填欄位（假別、摘要、備註）
+    </div>
+    <div class="extra-fields" id="extra-${id}">
+      <div class="item-grid" style="margin-top:4px;">
+        <div>
+          <label class="field-label">假別</label>
+          <select class="f-leave">
+            ${LEAVE_OPTIONS.map(o => `<option value="${o}">${o || '（未填）'}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="field-label">備註</label>
+          <input type="text" class="f-note" placeholder="選填">
+        </div>
+        <div class="full">
+          <label class="field-label">摘要</label>
+          <input type="text" class="f-summary" placeholder="選填">
+        </div>
+      </div>
+    </div>
   `;
+
   document.getElementById('itemList').appendChild(block);
+
   block.querySelector('.remove-btn').addEventListener('click', () => {
     if (document.querySelectorAll('#itemList .item-block').length > 1) block.remove();
   });
 
-  block.querySelectorAll('.type-row input[type="radio"]').forEach(radio => {
-    radio.addEventListener('change', () => updateTypeVisibility(block));
+  block.querySelectorAll('.type-row input[type="radio"]').forEach(r => {
+    r.addEventListener('change', () => updateTypeVisibility(block));
   });
 
   const dateInput = block.querySelector('.f-date');
   const weekdayInput = block.querySelector('.f-weekday');
+  const periodInput = block.querySelector('.f-period');
+  const periodCountInput = block.querySelector('.f-period-count');
+
   dateInput.addEventListener('input', () => {
     if (weekdayInput.value.trim() !== '' && !weekdayInput.dataset.auto) return;
     const guess = guessWeekday(dateInput.value);
-    if (guess) {
-      weekdayInput.value = guess;
-      weekdayInput.dataset.auto = '1';
-    } else if (weekdayInput.dataset.auto) {
-      weekdayInput.value = '';
-    }
+    if (guess) { weekdayInput.value = guess; weekdayInput.dataset.auto = '1'; }
+    else if (weekdayInput.dataset.auto) weekdayInput.value = '';
   });
-  weekdayInput.addEventListener('input', () => {
-    delete weekdayInput.dataset.auto;
+  weekdayInput.addEventListener('input', () => { delete weekdayInput.dataset.auto; });
+
+  periodInput.addEventListener('input', () => {
+    const count = estimatePeriodCount(periodInput.value);
+    periodCountInput.value = count;
+  });
+
+  block.querySelector('.extra-fields-toggle').addEventListener('click', function() {
+    const target = document.getElementById(this.dataset.target);
+    target.classList.toggle('open');
+    this.textContent = (target.classList.contains('open') ? '▾ ' : '▸ ') + '月底補填欄位（假別、摘要、備註）';
   });
 }
 
+/* ── date / weekday helpers ── */
 const WEEKDAY_CHARS = ['日','一','二','三','四','五','六'];
 
 function resolveDate(month, day) {
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
   const today = new Date();
   let date = new Date(today.getFullYear(), month - 1, day);
-  if ((today - date) / 86400000 > 30) {
-    date = new Date(today.getFullYear() + 1, month - 1, day);
-  }
+  if ((today - date) / 86400000 > 30) date = new Date(today.getFullYear() + 1, month - 1, day);
   return date;
-}
-
-function guessWeekday(str) {
-  const s = formatDateText(str.trim());
-
-  const rangeMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})\s*[~～]\s*(\d{1,2})[\/\-](\d{1,2})$/);
-  if (rangeMatch) {
-    const d1 = resolveDate(Number(rangeMatch[1]), Number(rangeMatch[2]));
-    const d2 = resolveDate(Number(rangeMatch[3]), Number(rangeMatch[4]));
-    if (!d1 || !d2) return null;
-    const w1 = WEEKDAY_CHARS[d1.getDay()];
-    const w2 = WEEKDAY_CHARS[d2.getDay()];
-    return `${w1}～${w2}`;
-  }
-
-  const singleMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
-  if (singleMatch) {
-    const d = resolveDate(Number(singleMatch[1]), Number(singleMatch[2]));
-    return d ? WEEKDAY_CHARS[d.getDay()] : null;
-  }
-
-  if (/[、,，]/.test(s)) {
-    const parts = s.split(/[、,，]/).map(p => p.trim()).filter(Boolean);
-    if (parts.length > 1) {
-      const weekdays = [];
-      for (const part of parts) {
-        const m = part.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
-        if (!m) return null;
-        const d = resolveDate(Number(m[1]), Number(m[2]));
-        if (!d) return null;
-        weekdays.push(WEEKDAY_CHARS[d.getDay()]);
-      }
-      return weekdays.join('、');
-    }
-  }
-
-  return null;
-}
-
-function getVal(id) {
-  const el = document.getElementById(id);
-  return el ? el.value.trim() : '';
-}
-
-const SUBJECT_DICT = [
-  '國語','數學','英語','英文','自然科學','自然','社會','健康與體育','健康',
-  '體育','藝術','綜合活動','綜合','資訊','本土語文','閩南語','客家語',
-  '原住民語','新住民語','音樂','美術','生活課程','生活','閱讀','班會',
-  '彈性課程','彈性','社團活動','社團','輔導活動','輔導','童軍','家政','科技'
-].sort((a, b) => b.length - a.length);
-
-function tokenizeSubjects(str) {
-  let i = 0;
-  const tokens = [];
-  while (i < str.length) {
-    const match = SUBJECT_DICT.find(w => str.startsWith(w, i));
-    if (!match) return null;
-    tokens.push(match);
-    i += match.length;
-  }
-  return tokens;
-}
-
-function formatSubjects(raw) {
-  const s = raw.trim();
-  if (!s) return '';
-  if (/[、,，\s]/.test(s)) {
-    return s.split(/[、,，\s]+/).filter(Boolean).join('、');
-  }
-  const tokens = tokenizeSubjects(s);
-  return tokens ? tokens.join('、') : s;
 }
 
 function expandCompactDateToken(token) {
   if (!/^\d{3,4}$/.test(token)) return token;
-  const day = token.slice(-2);
-  const month = token.slice(0, -2);
-  const dayNum = Number(day);
-  const monthNum = Number(month);
-  if (monthNum < 1 || monthNum > 12 || dayNum < 1 || dayNum > 31) return token;
-  return `${monthNum}/${dayNum}`;
+  const day = token.slice(-2), month = token.slice(0, -2);
+  const d = Number(day), m = Number(month);
+  if (m < 1 || m > 12 || d < 1 || d > 31) return token;
+  return `${m}/${d}`;
 }
 
 function formatDateText(raw) {
   const s = raw.trim();
   if (!s) return '';
-  return s.split(/([～~、,，])/).map(part => expandCompactDateToken(part)).join('');
+  return s.split(/([～~、,，])/).map(expandCompactDateToken).join('');
 }
 
-function expandCompactPeriodToken(token) {
-  if (/^\d{2,}$/.test(token)) {
-    return token.split('').join('、');
+function guessWeekday(str) {
+  const s = formatDateText(str.trim());
+  const rangeMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})\s*[~～]\s*(\d{1,2})[\/\-](\d{1,2})$/);
+  if (rangeMatch) {
+    const d1 = resolveDate(+rangeMatch[1], +rangeMatch[2]);
+    const d2 = resolveDate(+rangeMatch[3], +rangeMatch[4]);
+    if (!d1 || !d2) return null;
+    return `${WEEKDAY_CHARS[d1.getDay()]}～${WEEKDAY_CHARS[d2.getDay()]}`;
   }
+  const singleMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
+  if (singleMatch) {
+    const d = resolveDate(+singleMatch[1], +singleMatch[2]);
+    return d ? WEEKDAY_CHARS[d.getDay()] : null;
+  }
+  if (/[、,，]/.test(s)) {
+    const parts = s.split(/[、,，]/).map(p => p.trim()).filter(Boolean);
+    if (parts.length > 1) {
+      const days = [];
+      for (const p of parts) {
+        const m = p.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
+        if (!m) return null;
+        const d = resolveDate(+m[1], +m[2]);
+        if (!d) return null;
+        days.push(WEEKDAY_CHARS[d.getDay()]);
+      }
+      return days.join('、');
+    }
+  }
+  return null;
+}
+
+/* ── period helpers ── */
+function expandCompactPeriodToken(token) {
+  if (/^\d{2,}$/.test(token)) return token.split('').join('、');
   return token;
 }
 
@@ -435,22 +658,72 @@ function formatPeriodText(raw) {
   return `第${expanded}節`;
 }
 
+function estimatePeriodCount(raw) {
+  const s = raw.trim();
+  if (!s) return '';
+  const range = s.match(/^(\d+)[-~～](\d+)$/);
+  if (range) return String(Math.abs(+range[2] - +range[1]) + 1);
+  if (/^\d{2,}$/.test(s)) return String(s.length);
+  const parts = s.split(/[、,，]/).map(p => p.trim()).filter(Boolean);
+  return String(parts.length);
+}
+
+/* ── subject helpers ── */
+const SUBJECT_DICT = [
+  '國語','數學','英語','英文','自然科學','自然','社會','健康與體育','健康',
+  '體育','藝術','綜合活動','綜合','資訊','本土語文','閩南語','客家語',
+  '原住民語','新住民語','音樂','美術','生活課程','生活','閱讀','班會',
+  '彈性課程','彈性','社團活動','社團','輔導活動','輔導','童軍','家政'
+].sort((a, b) => b.length - a.length);
+
+function tokenizeSubjects(str) {
+  let i = 0; const tokens = [];
+  while (i < str.length) {
+    const match = SUBJECT_DICT.find(w => str.startsWith(w, i));
+    if (!match) return null;
+    tokens.push(match); i += match.length;
+  }
+  return tokens;
+}
+
+function formatSubjects(raw) {
+  const s = raw.trim();
+  if (!s) return '';
+  if (/[、,，\s]/.test(s)) return s.split(/[、,，\s]+/).filter(Boolean).join('、');
+  const tokens = tokenizeSubjects(s);
+  return tokens ? tokens.join('、') : s;
+}
+
+/* ── collect form data ── */
+function getVal(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+
 function getItems() {
-  const blocks = document.querySelectorAll('#itemList .item-block');
-  return Array.from(blocks).map(block => {
+  return Array.from(document.querySelectorAll('#itemList .item-block')).map(block => {
     const checked = block.querySelector('.type-row input[type="radio"]:checked');
+    const isDay = checked && checked.value === 'day';
+    const periodCountEl = block.querySelector('.f-period-count');
     return {
-      type: checked ? checked.value : 'period',
+      type: isDay ? 'day' : 'period',
       date: block.querySelector('.f-date').value.trim(),
       weekday: block.querySelector('.f-weekday').value.trim(),
       period: block.querySelector('.f-period').value.trim(),
       className: block.querySelector('.f-class').value.trim(),
       subject: block.querySelector('.f-subject').value.trim(),
-      teacher: block.querySelector('.f-teacher').value.trim()
+      teacher: block.querySelector('.f-teacher').value.trim(),
+      periodCount: isDay ? '' : (periodCountEl ? periodCountEl.value.trim() : ''),
+      dayCount: isDay ? (block.querySelector('.f-day-count').value.trim() || '1') : '',
+      mentorCount: isDay ? (block.querySelector('.f-mentor-count').value.trim() || '0') : '',
+      leaveType: block.querySelector('.f-leave').value,
+      summary: block.querySelector('.f-summary').value.trim(),
+      note: block.querySelector('.f-note').value.trim()
     };
   });
 }
 
+/* ── generate LINE message ── */
 function formatItemFields(it) {
   const teacherText = it.teacher ? `${it.teacher}老師` : '';
   const fields = [
@@ -464,74 +737,206 @@ function formatItemFields(it) {
   return fields;
 }
 
-function generateText() {
-  const subTeacherName = getVal('subTeacher');
-  const subTeacher = subTeacherName ? `${subTeacherName}老師` : '';
+function buildLineMessage() {
+  const subTeacher = getVal('subTeacher');
   const items = getItems();
-
   const lines = items.map((it, i) => {
     const prefix = items.length > 1 ? `${i + 1}. ` : '';
     const indent = items.length > 1 ? '　' : '';
-    return formatItemFields(it)
-      .map((line, idx) => (idx === 0 ? prefix : indent) + line)
-      .join('\n');
+    return formatItemFields(it).map((line, idx) => (idx === 0 ? prefix : indent) + line).join('\n');
   }).join('\n\n');
-
-  const text = `${subTeacher}您好，
-想請問您以下時間是否方便幫忙代課？
-
-${lines}
-
-如果有方便的時間，再麻煩您回覆我，謝謝老師。`;
-
-  document.getElementById('output').value = text;
+  return `${subTeacher ? subTeacher + '老師' : ''}您好，\n想請問您以下時間是否方便幫忙代課？\n\n${lines}\n\n如果有方便的時間，再麻煩您回覆我，謝謝老師。`;
 }
 
+function generateText() {
+  document.getElementById('output').value = buildLineMessage();
+}
+
+/* ── copy helpers ── */
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), isError ? 2500 : 1500);
+}
+
+async function copyTextContent(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {}
+  try {
+    const ta = document.getElementById('output');
+    ta.value = text;
+    ta.focus();
+    ta.setSelectionRange(0, text.length);
+    document.execCommand('copy');
+    return true;
+  } catch (e) { return false; }
+}
+
+async function copyOnly() {
+  const text = document.getElementById('output').value;
+  if (!text) { showToast('尚無內容'); return; }
+  const ok = await copyTextContent(text);
+  showToast(ok ? '已複製' : '複製失敗，請手動選取', !ok);
+}
+
+/* ── Google Sheets integration ── */
+function generateId() {
+  return 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+function nowStr() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function postToSheets(rows) {
+  if (!gasUrl) throw new Error('尚未設定 Web App URL');
+  const res = await fetch(gasUrl, {
+    method: 'POST',
+    body: JSON.stringify(rows),
+    redirect: 'follow'
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || '寫入失敗');
+  return json;
+}
+
+async function fetchFromSheets() {
+  if (!gasUrl) throw new Error('尚未設定 Web App URL');
+  const res = await fetch(gasUrl + '?action=get', { redirect: 'follow' });
+  const json = await res.json();
+  return json.rows || [];
+}
+
+/* ── main action: copy + save ── */
+async function copyAndSave() {
+  const subTeacherName = getVal('subTeacher');
+  const settleMonth = getVal('settleMonth');
+  const items = getItems();
+  const text = buildLineMessage();
+
+  document.getElementById('output').value = text;
+
+  const now = nowStr();
+  const rows = items.map(it => ({
+    id: generateId(),
+    狀態: '已詢問',
+    結算月份: settleMonth,
+    代課類型: it.type === 'period' ? '節代' : '日代',
+    代課教師: subTeacherName ? subTeacherName + '老師' : '',
+    日期: formatDateText(it.date),
+    星期: it.weekday,
+    節次或日代: it.type === 'period' ? formatPeriodText(it.period) : '日代',
+    班級: it.className,
+    科目: it.type === 'period' ? formatSubjects(it.subject) : '',
+    授課教師: it.teacher ? it.teacher + '老師' : '',
+    代課節數: it.periodCount,
+    代課日數: it.dayCount,
+    導師日數: it.mentorCount,
+    備註: it.note,
+    假別: it.leaveType,
+    摘要: it.summary,
+    建立時間: now,
+    更新時間: now
+  }));
+
+  const copyOk = await copyTextContent(text);
+
+  if (!gasUrl) {
+    showToast(copyOk ? '已複製（未設定 Sheets URL，資料未儲存）' : '複製失敗', !copyOk);
+    return;
+  }
+
+  const btn = document.getElementById('copyAndSaveBtn');
+  btn.disabled = true;
+  btn.textContent = '儲存中…';
+  try {
+    await postToSheets(rows);
+    updateStatusDot('ok');
+    showToast(copyOk ? '已複製 ＋ 已儲存到 Sheets ✓' : '已儲存到 Sheets（複製失敗）');
+    fetchAndRender();
+  } catch (err) {
+    updateStatusDot('err');
+    showToast('Sheets 儲存失敗：' + err.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📋 複製詢問訊息並加入追蹤清單';
+  }
+}
+
+/* ── tracking list ── */
+let allRows = [];
+
+async function fetchAndRender() {
+  const container = document.getElementById('trackingList');
+  container.innerHTML = '<p class="empty-state">載入中…</p>';
+  document.getElementById('countLabel').textContent = '';
+  try {
+    allRows = await fetchFromSheets();
+    updateStatusDot('ok');
+    renderList();
+  } catch (err) {
+    updateStatusDot('err');
+    container.innerHTML = `<p class="empty-state" style="color:var(--error)">讀取失敗：${err.message}</p>`;
+  }
+}
+
+function renderList() {
+  const container = document.getElementById('trackingList');
+  const filterMonth = document.getElementById('filterMonth').value.trim();
+  let rows = allRows;
+  if (filterMonth) rows = rows.filter(r => String(r['結算月份'] || '').includes(filterMonth));
+
+  document.getElementById('countLabel').textContent = `共 ${rows.length} 筆${filterMonth ? `（篩選：${filterMonth}）` : ''}`;
+
+  if (rows.length === 0) {
+    container.innerHTML = '<p class="empty-state">沒有符合的資料</p>';
+    return;
+  }
+
+  const badgeClass = s => s === '已完成' ? 'badge-done' : s === '已取消' ? 'badge-cancel' : 'badge-asked';
+
+  const ths = LIST_COLS.map(c => `<th>${c}</th>`).join('');
+  const trs = rows.map(row => {
+    const tds = LIST_COLS.map(c => {
+      const v = row[c] != null ? String(row[c]) : '';
+      if (c === '狀態') return `<td><span class="status-badge ${badgeClass(v)}">${v}</span></td>`;
+      return `<td>${v}</td>`;
+    }).join('');
+    return `<tr>${tds}</tr>`;
+  }).join('');
+
+  container.innerHTML = `<div class="table-wrap"><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+}
+
+/* ── clear form ── */
 function clearAll() {
   document.getElementById('subTeacher').value = '';
+  document.getElementById('settleMonth').value = '';
   document.getElementById('itemList').innerHTML = '';
   itemCount = 0;
   addItem();
   document.getElementById('output').value = '';
 }
 
-function showToast(msg) {
-  const toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 1500);
-}
-
-async function copyText() {
-  const output = document.getElementById('output');
-  const text = output.value;
-  if (!text) {
-    showToast('尚無內容');
-    return;
-  }
-  try {
-    await navigator.clipboard.writeText(text);
-    showToast('已複製');
-    return;
-  } catch (e) {
-    /* fall through to legacy copy method below */
-  }
-  try {
-    output.focus();
-    output.setSelectionRange(0, text.length);
-    document.execCommand('copy');
-    showToast('已複製');
-  } catch (e) {
-    showToast('複製失敗，請手動選取');
-  }
-}
-
+/* ── init ── */
+document.getElementById('saveUrlBtn').addEventListener('click', saveSettings);
 document.getElementById('generateBtn').addEventListener('click', generateText);
 document.getElementById('clearBtn').addEventListener('click', clearAll);
-document.getElementById('copyBtn').addEventListener('click', copyText);
+document.getElementById('copyBtn').addEventListener('click', copyOnly);
+document.getElementById('copyAndSaveBtn').addEventListener('click', copyAndSave);
 document.getElementById('addItemBtn').addEventListener('click', () => addItem());
+document.getElementById('refreshBtn').addEventListener('click', fetchAndRender);
+document.getElementById('filterMonth').addEventListener('input', renderList);
 
+loadSettings();
 addItem();
+if (gasUrl) fetchAndRender();
 </script>
 </body>
 </html>
