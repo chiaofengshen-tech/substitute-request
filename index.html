@@ -585,6 +585,7 @@ function addItem() {
     if (guess) { weekdayInput.value = guess; weekdayInput.dataset.auto = '1'; }
     else if (weekdayInput.dataset.auto) weekdayInput.value = '';
   });
+  dateInput.addEventListener('input', () => { autoFillSettleMonth(dateInput.value); });
   weekdayInput.addEventListener('input', () => { delete weekdayInput.dataset.auto; });
 
   periodInput.addEventListener('input', () => {
@@ -704,6 +705,24 @@ function formatSubjects(raw) {
   if (/[、,，\s]/.test(s)) return s.split(/[、,，\s]+/).filter(Boolean).join('、');
   const tokens = tokenizeSubjects(s);
   return tokens ? tokens.join('、') : s;
+}
+
+/* ── auto-fill 結算月份 ── */
+function autoFillSettleMonth(raw) {
+  const monthInput = document.getElementById('settleMonth');
+  if (monthInput.value.trim() && !monthInput.dataset.auto) return;
+  const s = formatDateText(raw.trim());
+  const m = s.match(/^(\d{1,2})[\/\-]/);
+  if (!m) return;
+  const month = Number(m[1]);
+  if (month < 1 || month > 12) return;
+  const today = new Date();
+  const year = today.getMonth() + 1 >= month
+    ? today.getFullYear()
+    : today.getFullYear() - 1;
+  const roc = year - 1911;
+  monthInput.value = roc + '年' + month + '月';
+  monthInput.dataset.auto = '1';
 }
 
 /* ── collect form data ── */
@@ -972,6 +991,10 @@ document.getElementById('copyAndSaveBtn').addEventListener('click', copyAndSave)
 document.getElementById('addItemBtn').addEventListener('click', () => addItem());
 document.getElementById('refreshBtn').addEventListener('click', fetchAndRender);
 document.getElementById('filterMonth').addEventListener('input', renderList);
+
+document.getElementById('settleMonth').addEventListener('input', function() {
+  delete this.dataset.auto;
+});
 
 loadSettings();
 addItem();
