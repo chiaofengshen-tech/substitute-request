@@ -349,6 +349,18 @@
     font-size: 0.9rem;
     padding: 30px 0;
   }
+  .del-btn {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: 0.85rem;
+    background: #fdeaea;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .del-btn:hover { background: #f3c0c0; }
   .count-label {
     font-size: 0.78rem;
     color: var(--muted);
@@ -869,6 +881,23 @@ async function copyAndSave() {
   }
 }
 
+/* ── delete row ── */
+async function deleteRow(id) {
+  try {
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete', id: id }),
+      redirect: 'follow'
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || '刪除失敗');
+    showToast('已刪除');
+    fetchAndRender();
+  } catch (err) {
+    showToast('刪除失敗：' + err.message, true);
+  }
+}
+
 /* ── tracking list ── */
 let allRows = [];
 
@@ -899,19 +928,29 @@ function renderList() {
     return;
   }
 
-  const badgeClass = s => s === '已完成' ? 'badge-done' : s === '已取消' ? 'badge-cancel' : 'badge-asked';
+  function badgeClass(s) {
+    return s === '已完成' ? 'badge-done' : s === '已取消' ? 'badge-cancel' : 'badge-asked';
+  }
 
-  const ths = LIST_COLS.map(c => `<th>${c}</th>`).join('');
+  const ths = ['刪除'].concat(LIST_COLS).map(c => `<th>${c}</th>`).join('');
   const trs = rows.map(row => {
+    const rowId = row['id'] || '';
     const tds = LIST_COLS.map(c => {
       const v = row[c] != null ? String(row[c]) : '';
       if (c === '狀態') return `<td><span class="status-badge ${badgeClass(v)}">${v}</span></td>`;
       return `<td>${v}</td>`;
     }).join('');
-    return `<tr>${tds}</tr>`;
+    return `<tr><td><button class="del-btn" data-id="${rowId}" title="刪除這筆">🗑</button></td>${tds}</tr>`;
   }).join('');
 
   container.innerHTML = `<div class="table-wrap"><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+
+  container.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.dataset.id;
+      if (confirm('確定刪除這筆代課記錄？')) deleteRow(id);
+    });
+  });
 }
 
 /* ── clear form ── */
