@@ -808,7 +808,7 @@ function formatItemFields(it) {
     `日期：${formatDateText(it.date)}`,
     `星期：${it.weekday}`
   ];
-  if (it.type !== 'day') fields.push(`節次：${formatPeriodText(it.period)}`);
+  fields.push(it.type === 'day' ? `節次：全天` : `節次：${formatPeriodText(it.period)}`);
   fields.push(`班級：${it.className}`);
   if (it.type !== 'day') fields.push(`科目：${formatSubjects(it.subject)}`);
   fields.push(`授課教師：${teacherText}`);
