@@ -908,30 +908,32 @@ function renderPending() {
   card.style.display = '';
 
   const rows = list.map((p, pi) => {
+    const groupHeader = `<tr style="background:#fffbf0;">
+      <td colspan="8" style="font-size:0.8rem;color:#7a6010;padding:6px 8px;font-weight:600;">
+        📨 ${p.subTeacher}老師・${p.settleMonth}
+      </td>
+    </tr>`;
+
     const itemRows = p.items.map((it, ii) => {
       const isDay = it.type === 'day';
       const periodCell = isDay ? '日代' : `<span class="editable-period" contenteditable="true" data-pi="${pi}" data-ii="${ii}">${it.periodFormatted || ''}</span>`;
       return `<tr>
-        <td>${pi === 0 || ii === 0 ? '' : ''}${it.dateFormatted || ''}</td>
+        <td>${it.dateFormatted || ''}</td>
         <td>${it.weekday || ''}</td>
         <td>${periodCell}</td>
         <td>${it.className || ''}</td>
         <td>${it.subject || ''}</td>
         <td>${it.teacherText || ''}</td>
-        ${ii === 0 ? `<td rowspan="${p.items.length}" style="vertical-align:middle;">
+        <td>
           <div class="pending-actions">
-            <button class="btn-confirm" data-pi="${pi}">確認代課</button>
-            <button class="btn-pend-del" data-pi="${pi}">刪除</button>
+            <button class="btn-confirm" data-pi="${pi}" data-ii="${ii}">確認代課</button>
+            <button class="btn-pend-del" data-pi="${pi}" data-ii="${ii}">刪除</button>
           </div>
-        </td>` : ''}
+        </td>
       </tr>`;
     }).join('');
 
-    return `<tr style="background:#fffbf0;">
-      <td colspan="7" style="font-size:0.8rem;color:#7a6010;padding:6px 8px;font-weight:600;">
-        📨 ${p.subTeacher}老師・${p.settleMonth}
-      </td>
-    </tr>${itemRows}`;
+    return groupHeader + itemRows;
   }).join('');
 
   container.innerHTML = `<table class="pending-table">
@@ -939,43 +941,47 @@ function renderPending() {
     <tbody>${rows}</tbody>
   </table>`;
 
-  // 確認代課
+  // 確認代課（單筆）
   container.querySelectorAll('.btn-confirm').forEach(btn => {
     btn.addEventListener('click', async function() {
       const pi = Number(this.dataset.pi);
-      // 先讀取可能被編輯的節次
-      container.querySelectorAll('.editable-period[data-pi="' + pi + '"]').forEach(el => {
-        const ii = Number(el.dataset.ii);
+      const ii = Number(this.dataset.ii);
+      // 讀取可能被編輯的節次
+      const el = container.querySelector(`.editable-period[data-pi="${pi}"][data-ii="${ii}"]`);
+      if (el) {
         const list2 = loadPending();
         if (list2[pi] && list2[pi].items[ii]) {
           list2[pi].items[ii].periodFormatted = el.textContent.trim();
           savePending(list2);
         }
-      });
-      await confirmPending(pi);
+      }
+      await confirmPendingItem(pi, ii);
     });
   });
 
-  // 刪除詢問
+  // 刪除單筆
   container.querySelectorAll('.btn-pend-del').forEach(btn => {
     btn.addEventListener('click', function() {
       const pi = Number(this.dataset.pi);
-      if (confirm('確定移除這筆詢問記錄？')) {
-        const list2 = loadPending();
-        list2.splice(pi, 1);
-        savePending(list2);
-        renderPending();
-      }
+      const ii = Number(this.dataset.ii);
+      const list2 = loadPending();
+      if (!list2[pi]) return;
+      list2[pi].items.splice(ii, 1);
+      if (list2[pi].items.length === 0) list2.splice(pi, 1);
+      savePending(list2);
+      renderPending();
     });
   });
 }
 
-async function confirmPending(pi) {
+async function confirmPendingItem(pi, ii) {
+  if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
   const list = loadPending();
   const p = list[pi];
-  if (!p) return;
+  if (!p || !p.items[ii]) return;
+  const it = p.items[ii];
   const now = nowStr();
-  const rows = p.items.map(it => ({
+  const row = {
     id: generateId(),
     狀態: '已確認',
     結算月份: p.settleMonth,
@@ -992,17 +998,18 @@ async function confirmPending(pi) {
     導師日數: it.mentorCount || '',
     備註: '', 假別: '', 摘要: '',
     建立時間: now, 更新時間: now
-  }));
-
-  if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
+  };
   try {
-    await postToSheets(rows);
-    list.splice(pi, 1);
+    await postToSheets([row]);
+    list[pi].items.splice(ii, 1);
+    if (list[pi].items.length === 0) list.splice(pi, 1);
     savePending(list);
     renderPending();
+    updateStatusDot('ok');
     showToast('已確認並寫入 Sheets ✓');
     fetchAndRender();
   } catch(err) {
+    updateStatusDot('err');
     showToast('寫入失敗：' + err.message, true);
   }
 }
