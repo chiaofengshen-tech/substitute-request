@@ -361,6 +361,43 @@
     cursor: pointer;
   }
   .del-btn:hover { background: #f3c0c0; }
+  .pending-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .pending-table th {
+    background: #fff8e6;
+    color: #7a6010;
+    font-weight: 600;
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 2px solid #f0c96e;
+    white-space: nowrap;
+  }
+  .pending-table td {
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .pending-table tr:hover td { background: #fffbf0; }
+  .editable-period {
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 3px 6px;
+    min-width: 80px;
+    display: inline-block;
+    cursor: text;
+  }
+  .editable-period:hover { border-color: var(--blue); background: #fff; }
+  .editable-period:focus { outline: none; border-color: var(--blue-dark); background: #fff; }
+  .pending-actions { display: flex; gap: 6px; }
+  .btn-confirm {
+    flex: none; padding: 5px 10px; font-size: 0.8rem;
+    background: var(--success); color: white;
+    border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
+  }
+  .btn-pend-del {
+    flex: none; padding: 5px 10px; font-size: 0.8rem;
+    background: #fdeaea; color: #a14444;
+    border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
+  }
   .count-label {
     font-size: 0.78rem;
     color: var(--muted);
@@ -405,20 +442,29 @@
     <div id="itemList"></div>
     <button type="button" class="btn-add" id="addItemBtn">＋ 新增一筆</button>
 
-    <div class="btn-row">
-      <button class="btn-success btn-full" id="copyAndSaveBtn" style="flex:2;">📋 複製詢問訊息並加入追蹤清單</button>
-      <button class="btn-secondary" id="clearBtn" style="flex:1;">清空</button>
+    <div class="btn-row" style="flex-wrap:wrap;">
+      <button class="btn-primary" id="copyMsgBtn" style="flex:2;min-width:160px;">💬 複製詢問訊息</button>
+      <button class="btn-success" id="directAddBtn" style="flex:2;min-width:160px;">✅ 直接新增已確認代課</button>
+      <button class="btn-secondary" id="clearBtn" style="flex:1;min-width:60px;">清空</button>
     </div>
   </div>
 
   <!-- Output -->
   <div class="card output-wrap">
     <label for="output">詢問訊息預覽</label>
-    <textarea id="output" readonly placeholder="按下「複製詢問訊息並加入追蹤清單」後，訊息會顯示在這裡"></textarea>
+    <textarea id="output" readonly placeholder="按下「複製詢問訊息」後，訊息會顯示在這裡"></textarea>
     <div class="output-buttons">
       <button class="btn-secondary" id="generateBtn">重新產生訊息</button>
       <button class="btn-primary" id="copyBtn">僅複製</button>
     </div>
+  </div>
+
+  <!-- Pending List -->
+  <div class="card" id="pendingCard" style="display:none;">
+    <div class="list-header">
+      <span class="section-title">📨 詢問中（等待回覆）</span>
+    </div>
+    <div id="pendingList"></div>
   </div>
 
   <!-- Tracking List -->
@@ -440,6 +486,7 @@
 <script>
 /* ── constants ── */
 const GAS_URL_KEY = 'gasWebAppUrl';
+const PENDING_KEY = 'pendingInquiries';
 const LIST_COLS = ['狀態','結算月份','代課類型','代課教師','日期','星期','節次或日代','班級','科目','授課教師','代課節數','代課日數','導師日數','假別','摘要','備註','建立時間','更新時間'];
 const LEAVE_OPTIONS = ['','公','事','病','喪','身心調適假','其他'];
 
@@ -844,19 +891,168 @@ async function fetchFromSheets() {
   return json.rows || [];
 }
 
-/* ── main action: copy + save ── */
-async function copyAndSave() {
+/* ── pending inquiries (localStorage) ── */
+function loadPending() {
+  try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); }
+  catch(e) { return []; }
+}
+function savePending(list) {
+  localStorage.setItem(PENDING_KEY, JSON.stringify(list));
+}
+
+function renderPending() {
+  const list = loadPending();
+  const card = document.getElementById('pendingCard');
+  const container = document.getElementById('pendingList');
+  if (list.length === 0) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  const rows = list.map((p, pi) => {
+    const itemRows = p.items.map((it, ii) => {
+      const isDay = it.type === 'day';
+      const periodCell = isDay ? '日代' : `<span class="editable-period" contenteditable="true" data-pi="${pi}" data-ii="${ii}">${it.periodFormatted || ''}</span>`;
+      return `<tr>
+        <td>${pi === 0 || ii === 0 ? '' : ''}${it.dateFormatted || ''}</td>
+        <td>${it.weekday || ''}</td>
+        <td>${periodCell}</td>
+        <td>${it.className || ''}</td>
+        <td>${it.subject || ''}</td>
+        <td>${it.teacherText || ''}</td>
+        ${ii === 0 ? `<td rowspan="${p.items.length}" style="vertical-align:middle;">
+          <div class="pending-actions">
+            <button class="btn-confirm" data-pi="${pi}">確認代課</button>
+            <button class="btn-pend-del" data-pi="${pi}">刪除</button>
+          </div>
+        </td>` : ''}
+      </tr>`;
+    }).join('');
+
+    return `<tr style="background:#fffbf0;">
+      <td colspan="7" style="font-size:0.8rem;color:#7a6010;padding:6px 8px;font-weight:600;">
+        📨 ${p.subTeacher}老師・${p.settleMonth}
+      </td>
+    </tr>${itemRows}`;
+  }).join('');
+
+  container.innerHTML = `<table class="pending-table">
+    <thead><tr><th>日期</th><th>星期</th><th>節次（可編輯）</th><th>班級</th><th>科目</th><th>授課教師</th><th>操作</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+
+  // 確認代課
+  container.querySelectorAll('.btn-confirm').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const pi = Number(this.dataset.pi);
+      // 先讀取可能被編輯的節次
+      container.querySelectorAll('.editable-period[data-pi="' + pi + '"]').forEach(el => {
+        const ii = Number(el.dataset.ii);
+        const list2 = loadPending();
+        if (list2[pi] && list2[pi].items[ii]) {
+          list2[pi].items[ii].periodFormatted = el.textContent.trim();
+          savePending(list2);
+        }
+      });
+      await confirmPending(pi);
+    });
+  });
+
+  // 刪除詢問
+  container.querySelectorAll('.btn-pend-del').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const pi = Number(this.dataset.pi);
+      if (confirm('確定移除這筆詢問記錄？')) {
+        const list2 = loadPending();
+        list2.splice(pi, 1);
+        savePending(list2);
+        renderPending();
+      }
+    });
+  });
+}
+
+async function confirmPending(pi) {
+  const list = loadPending();
+  const p = list[pi];
+  if (!p) return;
+  const now = nowStr();
+  const rows = p.items.map(it => ({
+    id: generateId(),
+    狀態: '已確認',
+    結算月份: p.settleMonth,
+    代課類型: it.type === 'period' ? '節代' : '日代',
+    代課教師: p.subTeacher ? p.subTeacher + '老師' : '',
+    日期: it.dateFormatted || '',
+    星期: it.weekday || '',
+    節次或日代: it.type === 'period' ? (it.periodFormatted || '') : '日代',
+    班級: it.className || '',
+    科目: it.subject || '',
+    授課教師: it.teacherText || '',
+    代課節數: it.periodCount || '',
+    代課日數: it.dayCount || '',
+    導師日數: it.mentorCount || '',
+    備註: '', 假別: '', 摘要: '',
+    建立時間: now, 更新時間: now
+  }));
+
+  if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
+  try {
+    await postToSheets(rows);
+    list.splice(pi, 1);
+    savePending(list);
+    renderPending();
+    showToast('已確認並寫入 Sheets ✓');
+    fetchAndRender();
+  } catch(err) {
+    showToast('寫入失敗：' + err.message, true);
+  }
+}
+
+/* ── copy inquiry message (no Sheets write) ── */
+async function copyMsg() {
   const subTeacherName = getVal('subTeacher');
   const settleMonth = getVal('settleMonth');
   const items = getItems();
   const text = buildLineMessage();
-
   document.getElementById('output').value = text;
 
+  const copyOk = await copyTextContent(text);
+
+  // 存到詢問中清單
+  const pending = {
+    pendingId: 'p-' + Date.now(),
+    subTeacher: subTeacherName,
+    settleMonth: settleMonth,
+    items: items.map(it => ({
+      type: it.type,
+      dateFormatted: formatDateText(it.date),
+      weekday: it.weekday,
+      periodFormatted: it.type === 'period' ? formatPeriodText(it.period) : '',
+      className: it.className,
+      subject: it.type === 'period' ? formatSubjects(it.subject) : '',
+      teacherText: it.teacher ? it.teacher + '老師' : '',
+      periodCount: it.periodCount,
+      dayCount: it.dayCount,
+      mentorCount: it.mentorCount
+    }))
+  };
+  const list = loadPending();
+  list.push(pending);
+  savePending(list);
+  renderPending();
+
+  showToast(copyOk ? '已複製，等待老師回覆後確認代課' : '複製失敗，請手動複製', !copyOk);
+}
+
+/* ── direct add (already confirmed) ── */
+async function directAdd() {
+  const subTeacherName = getVal('subTeacher');
+  const settleMonth = getVal('settleMonth');
+  const items = getItems();
+  if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
   const now = nowStr();
   const rows = items.map(it => ({
     id: generateId(),
-    狀態: '已詢問',
+    狀態: '已確認',
     結算月份: settleMonth,
     代課類型: it.type === 'period' ? '節代' : '日代',
     代課教師: subTeacherName ? subTeacherName + '老師' : '',
@@ -869,34 +1065,22 @@ async function copyAndSave() {
     代課節數: it.periodCount,
     代課日數: it.dayCount,
     導師日數: it.mentorCount,
-    備註: it.note,
-    假別: it.leaveType,
-    摘要: it.summary,
-    建立時間: now,
-    更新時間: now
+    備註: it.note, 假別: it.leaveType, 摘要: it.summary,
+    建立時間: now, 更新時間: now
   }));
 
-  const copyOk = await copyTextContent(text);
-
-  if (!gasUrl) {
-    showToast(copyOk ? '已複製（未設定 Sheets URL，資料未儲存）' : '複製失敗', !copyOk);
-    return;
-  }
-
-  const btn = document.getElementById('copyAndSaveBtn');
-  btn.disabled = true;
-  btn.textContent = '儲存中…';
+  const btn = document.getElementById('directAddBtn');
+  btn.disabled = true; btn.textContent = '儲存中…';
   try {
     await postToSheets(rows);
     updateStatusDot('ok');
-    showToast(copyOk ? '已複製 ＋ 已儲存到 Sheets ✓' : '已儲存到 Sheets（複製失敗）');
+    showToast('已新增到 Sheets ✓');
     fetchAndRender();
-  } catch (err) {
+  } catch(err) {
     updateStatusDot('err');
-    showToast('Sheets 儲存失敗：' + err.message, true);
+    showToast('儲存失敗：' + err.message, true);
   } finally {
-    btn.disabled = false;
-    btn.textContent = '📋 複製詢問訊息並加入追蹤清單';
+    btn.disabled = false; btn.textContent = '✅ 直接新增已確認代課';
   }
 }
 
@@ -987,7 +1171,8 @@ document.getElementById('saveUrlBtn').addEventListener('click', saveSettings);
 document.getElementById('generateBtn').addEventListener('click', generateText);
 document.getElementById('clearBtn').addEventListener('click', clearAll);
 document.getElementById('copyBtn').addEventListener('click', copyOnly);
-document.getElementById('copyAndSaveBtn').addEventListener('click', copyAndSave);
+document.getElementById('copyMsgBtn').addEventListener('click', copyMsg);
+document.getElementById('directAddBtn').addEventListener('click', directAdd);
 document.getElementById('addItemBtn').addEventListener('click', () => addItem());
 document.getElementById('refreshBtn').addEventListener('click', fetchAndRender);
 document.getElementById('filterMonth').addEventListener('input', renderList);
@@ -998,6 +1183,7 @@ document.getElementById('settleMonth').addEventListener('input', function() {
 
 loadSettings();
 addItem();
+renderPending();
 if (gasUrl) fetchAndRender();
 </script>
 </body>
