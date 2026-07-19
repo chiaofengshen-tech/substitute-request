@@ -1260,6 +1260,10 @@ function fmtDateShort(raw) {
   return String(raw);
 }
 
+function stripTeacher(name) {
+  return name ? String(name).replace(/老師$/, '') : '';
+}
+
 function buildTitle(month, type) {
   // month = "115年6月" → 學年度 = 114（月份<=7）或115（月份>=8）
   const m = month.match(/(\d+)年(\d+)月/);
@@ -1314,7 +1318,7 @@ async function generateReport(type) {
 
   if (type === '日代') {
     ws.columns = [
-      {width:11.5},{width:10.875},{width:9},{width:17.25},{width:36.5},
+      {width:13},{width:10},{width:10},{width:17.25},{width:36.5},
       {width:10.625},{width:11.625},{width:9.25},{width:8},{width:18},{width:9},{width:7}
     ];
     // 標題列
@@ -1339,9 +1343,9 @@ async function generateReport(type) {
 
       tRows.forEach((r, idx) => {
         const row = ws.getRow(rowNum); row.height = 37;
-        if (idx === 0) setCell(row, 1, name);
+        if (idx === 0) setCell(row, 1, stripTeacher(name));
         setCell(row, 2, fmtDateShort(r['日期']));
-        setCell(row, 3, r['授課教師'] || '');
+        setCell(row, 3, stripTeacher(r['授課教師']));
         setCell(row, 4, r['假別'] || '', fData, aCW);
         setCell(row, 5, r['摘要'] || '', fSmall, aL);
         setCell(row, 6, Number(r['代課日數']) || null);
@@ -1367,7 +1371,7 @@ async function generateReport(type) {
   } else {
     // 節代
     ws.columns = [
-      {width:11.5},{width:12.625},{width:9},{width:16.25},{width:35.25},{width:12.5},{width:9.625},{width:11.5}
+      {width:13},{width:10},{width:10},{width:16.25},{width:35.25},{width:12.5},{width:9.625},{width:11.5}
     ];
     const r1 = ws.getRow(1); r1.height = 21;
     const t = r1.getCell(1);
@@ -1388,9 +1392,9 @@ async function generateReport(type) {
 
       tRows.forEach((r, idx) => {
         const row = ws.getRow(rowNum); row.height = 37;
-        if (idx === 0) setCell(row, 1, name);
+        if (idx === 0) setCell(row, 1, stripTeacher(name));
         setCell(row, 2, fmtDateShort(r['日期']));
-        setCell(row, 3, r['授課教師'] || '');
+        setCell(row, 3, stripTeacher(r['授課教師']));
         setCell(row, 4, r['假別'] || '');
         setCell(row, 5, r['摘要'] || '', fMedWrap, { horizontal: 'left', vertical: 'middle' });
         setCell(row, 6, Number(r['代課節數']) || null);
