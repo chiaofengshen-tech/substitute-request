@@ -1340,6 +1340,14 @@ async function generateReport(type) {
 
 document.getElementById('genPeriodBtn').addEventListener('click', function() { generateReport('節代'); });
 document.getElementById('genDayBtn').addEventListener('click', function() { generateReport('日代'); });
+
+// 自動帶入當月（民國年）
+(function() {
+  var now = new Date();
+  var roc = now.getFullYear() - 1911;
+  var m = now.getMonth() + 1;
+  document.getElementById('reportMonth').value = roc + '年' + m + '月';
+})();
 </script>
 </body>
 </html>
