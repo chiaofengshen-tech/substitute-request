@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>代課詢問 ＆ 追蹤管理</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%237fb3d5'/%3E%3Ctext x='50' y='62' font-size='48' text-anchor='middle' fill='white' font-family='sans-serif'%3E代%3C/text%3E%3C/svg%3E">
 <style>
   :root {
@@ -469,6 +470,21 @@
   </div>
 
   <!-- Tracking List -->
+  <!-- 報表產生 -->
+  <div class="card">
+    <span class="section-title">📊 月底報表產生</span>
+    <div class="row2" style="margin-top:12px;">
+      <div>
+        <label for="reportMonth">結算月份</label>
+        <input id="reportMonth" type="text" placeholder="例：114年6月">
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:8px;">
+        <button class="btn-primary" id="genPeriodBtn">下載節代一覽表</button>
+        <button class="btn-success" id="genDayBtn">下載日代一覽表</button>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="list-header">
       <span class="section-title">📋 代課追蹤清單</span>
@@ -1220,6 +1236,110 @@ loadSettings();
 addItem();
 renderPending();
 if (gasUrl) { fetchAndRender(); loadTeachers(); }
+
+/* ── 報表產生 ── */
+function getTeacherInfo(name) {
+  var found = teacherData.find(function(t) {
+    return t['代課教師'] === name || (name && name.replace('老師','') === t['代課教師']);
+  });
+  return found || {};
+}
+
+async function fetchAllRows() {
+  if (!gasUrl) { showToast('請先設定 Web App URL', true); return null; }
+  const res = await fetch(gasUrl + '?action=get', { redirect: 'follow' });
+  const json = await res.json();
+  return json.rows || [];
+}
+
+async function generateReport(type) {
+  const month = document.getElementById('reportMonth').value.trim();
+  if (!month) { showToast('請先填寫結算月份', true); return; }
+  const rows = await fetchAllRows();
+  if (!rows) return;
+
+  // 篩選該月份 + 類型
+  const filtered = rows.filter(function(r) {
+    return r['結算月份'] === month && r['代課類型'] === type;
+  });
+
+  if (filtered.length === 0) {
+    showToast('找不到 ' + month + ' 的' + type + '資料', true);
+    return;
+  }
+
+  // 依代課教師分組
+  var groups = {};
+  filtered.forEach(function(r) {
+    var name = r['代課教師'] || '（未填）';
+    if (!groups[name]) groups[name] = [];
+    groups[name].push(r);
+  });
+
+  var sheetData = [];
+
+  if (type === '節代') {
+    // 表頭
+    sheetData.push(['代課教師','日期','請假人','假別','摘要','代課節數','總節數','備註']);
+    Object.keys(groups).forEach(function(name) {
+      var rows2 = groups[name];
+      var total = rows2.reduce(function(s, r) { return s + (Number(r['代課節數']) || 0); }, 0);
+      rows2.forEach(function(r, idx) {
+        sheetData.push([
+          idx === 0 ? name : '',
+          r['日期'] || '',
+          r['授課教師'] || '',
+          r['假別'] || '',
+          r['摘要'] || '',
+          r['代課節數'] || '',
+          idx === 0 ? total : '',
+          r['備註'] || ''
+        ]);
+      });
+    });
+  } else {
+    // 日代
+    sheetData.push(['代課教師','日期','請假人','假別','摘要','代課日數','導師日數','總日數','薪俸','學歷','教師證','備註']);
+    Object.keys(groups).forEach(function(name) {
+      var rows2 = groups[name];
+      var totalDay = rows2.reduce(function(s, r) { return s + (Number(r['代課日數']) || 0); }, 0);
+      var totalMentor = rows2.reduce(function(s, r) { return s + (Number(r['導師日數']) || 0); }, 0);
+      var info = getTeacherInfo(name);
+      rows2.forEach(function(r, idx) {
+        sheetData.push([
+          idx === 0 ? name : '',
+          r['日期'] || '',
+          r['授課教師'] || '',
+          r['假別'] || '',
+          r['摘要'] || '',
+          r['代課日數'] || '',
+          r['導師日數'] || '',
+          idx === 0 ? (totalDay + totalMentor) : '',
+          idx === 0 ? (info['薪俸'] || '') : '',
+          idx === 0 ? (info['學歷'] || '') : '',
+          idx === 0 ? (info['教師證'] || '') : '',
+          r['備註'] || ''
+        ]);
+      });
+    });
+  }
+
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+  // 欄寬
+  var wscols = type === '節代'
+    ? [{wch:12},{wch:12},{wch:10},{wch:8},{wch:20},{wch:8},{wch:8},{wch:20}]
+    : [{wch:12},{wch:12},{wch:10},{wch:8},{wch:20},{wch:8},{wch:8},{wch:8},{wch:8},{wch:30},{wch:10},{wch:20}];
+  ws['!cols'] = wscols;
+
+  XLSX.utils.book_append_sheet(wb, ws, type + '一覽表');
+  XLSX.writeFile(wb, month + type + '代課一覽表.xlsx');
+  showToast('已下載 ' + month + type + '代課一覽表.xlsx');
+}
+
+document.getElementById('genPeriodBtn').addEventListener('click', function() { generateReport('節代'); });
+document.getElementById('genDayBtn').addEventListener('click', function() { generateReport('日代'); });
 </script>
 </body>
 </html>
