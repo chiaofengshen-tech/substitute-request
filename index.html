@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>代課詢問 ＆ 追蹤管理</title>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%237fb3d5'/%3E%3Ctext x='50' y='62' font-size='48' text-anchor='middle' fill='white' font-family='sans-serif'%3E代%3C/text%3E%3C/svg%3E">
 <style>
   :root {
@@ -1239,8 +1239,9 @@ if (gasUrl) { fetchAndRender(); loadTeachers(); }
 
 /* ── 報表產生 ── */
 function getTeacherInfo(name) {
+  var plain = name ? name.replace('老師', '') : name;
   var found = teacherData.find(function(t) {
-    return t['代課教師'] === name || (name && name.replace('老師','') === t['代課教師']);
+    return t['代課教師'] === plain || t['代課教師'] === name;
   });
   return found || {};
 }
@@ -1252,97 +1253,157 @@ async function fetchAllRows() {
   return json.rows || [];
 }
 
+function fmtDateShort(raw) {
+  if (!raw) return '';
+  const m = String(raw).match(/(\d+)\/(\d+)\/(\d+)/);
+  if (m) return parseInt(m[2]) + '/' + parseInt(m[3]);
+  return String(raw);
+}
+
 async function generateReport(type) {
   const month = document.getElementById('reportMonth').value.trim();
   if (!month) { showToast('請先填寫結算月份', true); return; }
+  showToast('產生中…');
   const rows = await fetchAllRows();
   if (!rows) return;
 
-  // 篩選該月份 + 類型
-  const filtered = rows.filter(function(r) {
-    return r['結算月份'] === month && r['代課類型'] === type;
-  });
-
-  if (filtered.length === 0) {
-    showToast('找不到 ' + month + ' 的' + type + '資料', true);
-    return;
-  }
-
-  // 日期格式化：從 "2026/06/14 00:00" 取出 "6/14"
-  function fmtDate(raw) {
-    if (!raw) return '';
-    var m = String(raw).match(/(\d+)\/(\d+)\/(\d+)/);
-    if (m) return parseInt(m[2]) + '/' + parseInt(m[3]);
-    return raw;
-  }
+  const filtered = rows.filter(r => r['結算月份'] === month && r['代課類型'] === type);
+  if (filtered.length === 0) { showToast('找不到 ' + month + ' 的' + type + '資料', true); return; }
 
   // 依代課教師分組
-  var groups = {};
-  filtered.forEach(function(r) {
-    var name = r['代課教師'] || '（未填）';
-    if (!groups[name]) groups[name] = [];
-    groups[name].push(r);
+  const groups = {};
+  filtered.forEach(r => {
+    const n = r['代課教師'] || '（未填）';
+    if (!groups[n]) groups[n] = [];
+    groups[n].push(r);
   });
 
-  var sheetData = [];
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet(type + '一覽表');
 
-  if (type === '節代') {
+  const PURPLE = 'FF7030A0';
+  const thin = { style: 'thin' };
+  const allBorder = { top: thin, bottom: thin, left: thin, right: thin };
+  const fData  = { name: '標楷體', size: 16 };
+  const fHead  = { name: '標楷體', size: 16, bold: true, color: { argb: PURPLE } };
+  const fTitle = { name: '標楷體', size: 16, bold: true };
+  const fSmall = { name: '標楷體', size: 12 };
+  const fMed   = { name: '標楷體', size: 14 };
+  const fMedWrap = { name: '標楷體', size: 13 };
+  const aC = { horizontal: 'center', vertical: 'middle' };
+  const aL = { horizontal: 'left',   vertical: 'middle', wrapText: true };
+  const aCW= { horizontal: 'center', vertical: 'middle', wrapText: true };
+
+  function setCell(row, col, val, font, align) {
+    const c = row.getCell(col);
+    c.value = val === '' ? null : val;
+    c.font = font || fData;
+    c.alignment = align || aC;
+    c.border = allBorder;
+  }
+
+  if (type === '日代') {
+    ws.columns = [
+      {width:11.5},{width:10.875},{width:9},{width:17.25},{width:36.5},
+      {width:10.625},{width:11.625},{width:9.25},{width:8},{width:18},{width:9},{width:7}
+    ];
+    // 標題列
+    const r1 = ws.getRow(1); r1.height = 21;
+    const t = r1.getCell(1);
+    t.value = month + '日代代課一覽表';
+    t.font = fTitle; t.alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.mergeCells('A1:L1');
+
     // 表頭
-    sheetData.push(['代課教師','日期','請假人','假別','摘要','代課節數','總節數','備註']);
-    Object.keys(groups).forEach(function(name) {
-      var rows2 = groups[name];
-      var total = rows2.reduce(function(s, r) { return s + (Number(r['代課節數']) || 0); }, 0);
-      rows2.forEach(function(r, idx) {
-        sheetData.push([
-          idx === 0 ? name : '',
-          fmtDate(r['日期']),
-          r['授課教師'] || '',
-          r['假別'] || '',
-          r['摘要'] || '',
-          r['代課節數'] || '',
-          idx === 0 ? total : '',
-          r['備註'] || ''
-        ]);
+    const r2 = ws.getRow(2); r2.height = 21;
+    ['代課教師','日期','請假人','假別','摘要','代課日數','導師日數','總日數','薪俸','學歷','教師證','備註']
+      .forEach((h, i) => { const c = r2.getCell(i+1); c.value = h; c.font = fHead; c.alignment = aCW; c.border = allBorder; });
+
+    let rowNum = 3;
+    Object.keys(groups).forEach(name => {
+      const tRows = groups[name];
+      const start = rowNum;
+      const end = rowNum + tRows.length - 1;
+      const info = getTeacherInfo(name);
+      const totalDay = tRows.reduce((s, r) => s + (Number(r['代課日數']) || 0), 0);
+
+      tRows.forEach((r, idx) => {
+        const row = ws.getRow(rowNum); row.height = 28.5;
+        if (idx === 0) setCell(row, 1, name);
+        setCell(row, 2, fmtDateShort(r['日期']));
+        setCell(row, 3, r['授課教師'] || '');
+        setCell(row, 4, r['假別'] || '', fData, aCW);
+        setCell(row, 5, r['摘要'] || '', fSmall, aL);
+        setCell(row, 6, Number(r['代課日數']) || null);
+        setCell(row, 7, Number(r['導師日數']) || null);
+        if (idx === 0) setCell(row, 8, totalDay);
+        if (idx === 0) setCell(row, 9, info['薪俸'] ? Number(info['薪俸']) : null);
+        if (idx === 0) setCell(row, 10, info['學歷'] || null, fMed, aL);
+        if (idx === 0) setCell(row, 11, info['教師證'] || null, fMed, aCW);
+        setCell(row, 12, idx === 0 ? (r['備註'] || null) : null);
+        rowNum++;
       });
+
+      if (tRows.length > 1) {
+        ws.mergeCells(start, 1, end, 1);
+        ws.mergeCells(start, 8, end, 8);
+        ws.mergeCells(start, 9, end, 9);
+        ws.mergeCells(start, 10, end, 10);
+        ws.mergeCells(start, 11, end, 11);
+        ws.mergeCells(start, 12, end, 12);
+      }
     });
+
   } else {
-    // 日代
-    sheetData.push(['代課教師','日期','請假人','假別','摘要','代課日數','導師日數','總日數','薪俸','學歷','教師證','備註']);
-    Object.keys(groups).forEach(function(name) {
-      var rows2 = groups[name];
-      var totalDay = rows2.reduce(function(s, r) { return s + (Number(r['代課日數']) || 0); }, 0);
-      var totalMentor = rows2.reduce(function(s, r) { return s + (Number(r['導師日數']) || 0); }, 0);
-      var info = getTeacherInfo(name);
-      rows2.forEach(function(r, idx) {
-        sheetData.push([
-          idx === 0 ? name : '',
-          fmtDate(r['日期']),
-          r['授課教師'] || '',
-          r['假別'] || '',
-          r['摘要'] || '',
-          r['代課日數'] || '',
-          r['導師日數'] || '',
-          idx === 0 ? totalDay : '',
-          idx === 0 ? (info['薪俸'] || '') : '',
-          idx === 0 ? (info['學歷'] || '') : '',
-          idx === 0 ? (info['教師證'] || '') : '',
-          r['備註'] || ''
-        ]);
+    // 節代
+    ws.columns = [
+      {width:11.5},{width:12.625},{width:9},{width:16.25},{width:35.25},{width:12.5},{width:9.625},{width:11.5}
+    ];
+    const r1 = ws.getRow(1); r1.height = 21;
+    const t = r1.getCell(1);
+    t.value = month + '節代代課一覽表';
+    t.font = fTitle; t.alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.mergeCells('A1:H1');
+
+    const r2 = ws.getRow(2); r2.height = 21;
+    ['代課教師','日期','請假人','假別','摘要','代課節數','總節數','備註']
+      .forEach((h, i) => { const c = r2.getCell(i+1); c.value = h; c.font = fHead; c.alignment = aCW; c.border = allBorder; });
+
+    let rowNum = 3;
+    Object.keys(groups).forEach(name => {
+      const tRows = groups[name];
+      const start = rowNum;
+      const end = rowNum + tRows.length - 1;
+      const total = tRows.reduce((s, r) => s + (Number(r['代課節數']) || 0), 0);
+
+      tRows.forEach((r, idx) => {
+        const row = ws.getRow(rowNum); row.height = 28.5;
+        if (idx === 0) setCell(row, 1, name);
+        setCell(row, 2, fmtDateShort(r['日期']));
+        setCell(row, 3, r['授課教師'] || '');
+        setCell(row, 4, r['假別'] || '');
+        setCell(row, 5, r['摘要'] || '', fMedWrap, { horizontal: 'left', vertical: 'middle' });
+        setCell(row, 6, Number(r['代課節數']) || null);
+        if (idx === 0) setCell(row, 7, total);
+        setCell(row, 8, r['備註'] || null);
+        rowNum++;
       });
+
+      if (tRows.length > 1) {
+        ws.mergeCells(start, 1, end, 1);
+        ws.mergeCells(start, 7, end, 7);
+      }
     });
   }
 
-  var wb = XLSX.utils.book_new();
-  var ws = XLSX.utils.aoa_to_sheet(sheetData);
-
-  // 欄寬
-  var wscols = type === '節代'
-    ? [{wch:12},{wch:12},{wch:10},{wch:8},{wch:20},{wch:8},{wch:8},{wch:20}]
-    : [{wch:12},{wch:12},{wch:10},{wch:8},{wch:20},{wch:8},{wch:8},{wch:8},{wch:8},{wch:30},{wch:10},{wch:20}];
-  ws['!cols'] = wscols;
-
-  XLSX.utils.book_append_sheet(wb, ws, type + '一覽表');
-  XLSX.writeFile(wb, month + type + '代課一覽表.xlsx');
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = month + type + '代課一覽表.xlsx';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
   showToast('已下載 ' + month + type + '代課一覽表.xlsx');
 }
 
