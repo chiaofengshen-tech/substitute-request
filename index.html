@@ -1268,6 +1268,14 @@ async function generateReport(type) {
     return;
   }
 
+  // 日期格式化：從 "2026/06/14 00:00" 取出 "6/14"
+  function fmtDate(raw) {
+    if (!raw) return '';
+    var m = String(raw).match(/(\d+)\/(\d+)\/(\d+)/);
+    if (m) return parseInt(m[2]) + '/' + parseInt(m[3]);
+    return raw;
+  }
+
   // 依代課教師分組
   var groups = {};
   filtered.forEach(function(r) {
@@ -1287,7 +1295,7 @@ async function generateReport(type) {
       rows2.forEach(function(r, idx) {
         sheetData.push([
           idx === 0 ? name : '',
-          r['日期'] || '',
+          fmtDate(r['日期']),
           r['授課教師'] || '',
           r['假別'] || '',
           r['摘要'] || '',
@@ -1308,13 +1316,13 @@ async function generateReport(type) {
       rows2.forEach(function(r, idx) {
         sheetData.push([
           idx === 0 ? name : '',
-          r['日期'] || '',
+          fmtDate(r['日期']),
           r['授課教師'] || '',
           r['假別'] || '',
           r['摘要'] || '',
           r['代課日數'] || '',
           r['導師日數'] || '',
-          idx === 0 ? (totalDay + totalMentor) : '',
+          idx === 0 ? totalDay : '',
           idx === 0 ? (info['薪俸'] || '') : '',
           idx === 0 ? (info['學歷'] || '') : '',
           idx === 0 ? (info['教師證'] || '') : '',
