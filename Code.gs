@@ -167,6 +167,51 @@ function doPost(e) {
       throw new Error('找不到工作表「' + SHEET_NAME + '」，請先執行 setupSheet()');
     }
 
+    // 封存月份資料
+    if (payload.action === 'archive') {
+      var archiveMonth = payload.month;
+      if (!archiveMonth) return jsonResponse({ ok: false, error: '未指定月份' });
+
+      var data = sheet.getDataRange().getValues();
+      var monthCol = HEADERS.indexOf('結算月份');
+      var rowsToArchive = [];
+      var rowIndexToDelete = [];
+
+      for (var ai = 1; ai < data.length; ai++) {
+        if (String(data[ai][monthCol]) === String(archiveMonth)) {
+          rowsToArchive.push(data[ai]);
+          rowIndexToDelete.push(ai + 1); // 1-indexed
+        }
+      }
+
+      if (rowsToArchive.length === 0) {
+        return jsonResponse({ ok: false, error: '找不到「' + archiveMonth + '」的資料' });
+      }
+
+      // 建立或取得封存分頁
+      var archiveSheet = ss.getSheetByName(archiveMonth);
+      if (!archiveSheet) {
+        archiveSheet = ss.insertSheet(archiveMonth);
+        archiveSheet.getRange(1, 1, 1, HEADERS.length)
+          .setValues([HEADERS])
+          .setFontWeight('bold')
+          .setBackground('#ffe0b2');
+        archiveSheet.setFrozenRows(1);
+      }
+
+      // 寫入封存分頁
+      var lastRow = archiveSheet.getLastRow();
+      archiveSheet.getRange(lastRow + 1, 1, rowsToArchive.length, HEADERS.length)
+        .setValues(rowsToArchive);
+
+      // 從主表刪除（從後往前刪）
+      for (var di = rowIndexToDelete.length - 1; di >= 0; di--) {
+        sheet.deleteRow(rowIndexToDelete[di]);
+      }
+
+      return jsonResponse({ ok: true, archived: rowsToArchive.length, month: archiveMonth });
+    }
+
     // 刪除資料
     if (payload.action === 'delete') {
       var targetId = payload.id;

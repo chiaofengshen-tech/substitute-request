@@ -478,9 +478,10 @@
         <label for="reportMonth">結算月份</label>
         <input id="reportMonth" type="text" placeholder="例：114年6月">
       </div>
-      <div style="display:flex;align-items:flex-end;gap:8px;">
+      <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;">
         <button class="btn-primary" id="genPeriodBtn">下載節代一覽表</button>
         <button class="btn-success" id="genDayBtn">下載日代一覽表</button>
+        <button class="btn-secondary" id="archiveBtn">📦 封存本月資料</button>
       </div>
     </div>
   </div>
@@ -1423,6 +1424,30 @@ async function generateReport(type) {
 
 document.getElementById('genPeriodBtn').addEventListener('click', function() { generateReport('節代'); });
 document.getElementById('genDayBtn').addEventListener('click', function() { generateReport('日代'); });
+
+document.getElementById('archiveBtn').addEventListener('click', async function() {
+  const month = document.getElementById('reportMonth').value.trim();
+  if (!month) { showToast('請先填寫結算月份', true); return; }
+  if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
+  if (!confirm('確定要把「' + month + '」的資料封存到獨立分頁？\n封存後會從代課追蹤主表移除。')) return;
+  showToast('封存中…');
+  try {
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'archive', month: month }),
+      redirect: 'follow'
+    });
+    const json = await res.json();
+    if (json.ok) {
+      showToast('已封存 ' + json.archived + ' 筆「' + month + '」資料到獨立分頁');
+      fetchAndRender();
+    } else {
+      showToast(json.error || '封存失敗', true);
+    }
+  } catch(e) {
+    showToast('封存失敗：' + e.message, true);
+  }
+});
 
 // 自動帶入當月（民國年）
 (function() {
