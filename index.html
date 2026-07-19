@@ -1260,6 +1260,16 @@ function fmtDateShort(raw) {
   return String(raw);
 }
 
+function buildTitle(month, type) {
+  // month = "115年6月" → 學年度 = 114（月份<=7）或115（月份>=8）
+  const m = month.match(/(\d+)年(\d+)月/);
+  if (!m) return month + type + '代課一覽表';
+  const rocYear = parseInt(m[1]);
+  const monthNum = parseInt(m[2]);
+  const schoolYear = monthNum >= 8 ? rocYear : rocYear - 1;
+  return schoolYear + '學年度臺中市上石國小' + monthNum + '月份' + type + '代課一覽表';
+}
+
 async function generateReport(type) {
   const month = document.getElementById('reportMonth').value.trim();
   if (!month) { showToast('請先填寫結算月份', true); return; }
@@ -1310,7 +1320,7 @@ async function generateReport(type) {
     // 標題列
     const r1 = ws.getRow(1); r1.height = 21;
     const t = r1.getCell(1);
-    t.value = month + '日代代課一覽表';
+    t.value = buildTitle(month, '日代');
     t.font = fTitle; t.alignment = { horizontal: 'center', vertical: 'middle' };
     ws.mergeCells('A1:L1');
 
@@ -1328,7 +1338,7 @@ async function generateReport(type) {
       const totalDay = tRows.reduce((s, r) => s + (Number(r['代課日數']) || 0), 0);
 
       tRows.forEach((r, idx) => {
-        const row = ws.getRow(rowNum); row.height = 28.5;
+        const row = ws.getRow(rowNum); row.height = 37;
         if (idx === 0) setCell(row, 1, name);
         setCell(row, 2, fmtDateShort(r['日期']));
         setCell(row, 3, r['授課教師'] || '');
@@ -1361,7 +1371,7 @@ async function generateReport(type) {
     ];
     const r1 = ws.getRow(1); r1.height = 21;
     const t = r1.getCell(1);
-    t.value = month + '節代代課一覽表';
+    t.value = buildTitle(month, '節代');
     t.font = fTitle; t.alignment = { horizontal: 'center', vertical: 'middle' };
     ws.mergeCells('A1:H1');
 
@@ -1377,7 +1387,7 @@ async function generateReport(type) {
       const total = tRows.reduce((s, r) => s + (Number(r['代課節數']) || 0), 0);
 
       tRows.forEach((r, idx) => {
-        const row = ws.getRow(rowNum); row.height = 28.5;
+        const row = ws.getRow(rowNum); row.height = 37;
         if (idx === 0) setCell(row, 1, name);
         setCell(row, 2, fmtDateShort(r['日期']));
         setCell(row, 3, r['授課教師'] || '');
