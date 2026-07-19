@@ -430,7 +430,8 @@
     <div class="row2">
       <div>
         <label for="subTeacher">代課老師</label>
-        <input id="subTeacher" type="text" placeholder="例：王">
+        <input id="subTeacher" type="text" placeholder="輸入姓名搜尋…" autocomplete="off" list="teacherList">
+        <datalist id="teacherList"></datalist>
       </div>
       <div>
         <label for="settleMonth">結算月份</label>
@@ -492,6 +493,33 @@ const LEAVE_OPTIONS = ['','公','事','病','喪','身心調適假','其他'];
 
 /* ── settings ── */
 let gasUrl = localStorage.getItem(GAS_URL_KEY) || '';
+let teacherData = []; // [{代課教師, 顯示名稱, ...}]
+
+async function loadTeachers() {
+  if (!gasUrl) return;
+  try {
+    const res = await fetch(gasUrl + '?action=teachers', { redirect: 'follow' });
+    const json = await res.json();
+    teacherData = json.teachers || [];
+    const dl = document.getElementById('teacherList');
+    dl.innerHTML = '';
+    teacherData.forEach(function(t) {
+      const opt = document.createElement('option');
+      opt.value = t['顯示名稱'] || t['代課教師'];
+      dl.appendChild(opt);
+    });
+  } catch(e) {
+    // 靜默失敗，不影響其他功能
+  }
+}
+
+// 從顯示名稱找原始姓名（代課教師欄位）
+function resolveTeacherName(input) {
+  var found = teacherData.find(function(t) {
+    return t['顯示名稱'] === input || t['代課教師'] === input;
+  });
+  return found ? found['代課教師'] : input;
+}
 
 function loadSettings() {
   const input = document.getElementById('gasUrl');
@@ -1027,7 +1055,7 @@ async function copyMsg() {
   // 存到詢問中清單
   const pending = {
     pendingId: 'p-' + Date.now(),
-    subTeacher: subTeacherName,
+    subTeacher: resolveTeacherName(subTeacherName),
     settleMonth: settleMonth,
     items: items.map(it => ({
       type: it.type,
@@ -1062,7 +1090,7 @@ async function directAdd() {
     狀態: '已確認',
     結算月份: settleMonth,
     代課類型: it.type === 'period' ? '節代' : '日代',
-    代課教師: subTeacherName ? subTeacherName + '老師' : '',
+    代課教師: subTeacherName ? resolveTeacherName(subTeacherName) + '老師' : '',
     日期: formatDateText(it.date),
     星期: it.weekday,
     節次或日代: it.type === 'period' ? formatPeriodText(it.period) : '日代',
@@ -1191,7 +1219,7 @@ document.getElementById('settleMonth').addEventListener('input', function() {
 loadSettings();
 addItem();
 renderPending();
-if (gasUrl) fetchAndRender();
+if (gasUrl) { fetchAndRender(); loadTeachers(); }
 </script>
 </body>
 </html>
