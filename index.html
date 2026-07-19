@@ -1271,7 +1271,7 @@ function buildTitle(month, type) {
   if (!m) return month + type + '代課一覽表';
   const rocYear = parseInt(m[1]);
   const monthNum = parseInt(m[2]);
-  const schoolYear = monthNum >= 8 ? rocYear : rocYear - 1;
+  const schoolYear = monthNum >= 8 ? rocYear - 1 : rocYear;
   return schoolYear + '學年度臺中市上石國小' + monthNum + '月份' + type + '代課一覽表';
 }
 
@@ -1319,7 +1319,7 @@ async function generateReport(type) {
 
   if (type === '日代') {
     ws.columns = [
-      {width:16},{width:10},{width:14},{width:17.25},{width:36.5},
+      {width:18},{width:10},{width:16},{width:17.25},{width:36.5},
       {width:10.625},{width:11.625},{width:9.25},{width:8},{width:24},{width:9},{width:7}
     ];
     // 標題列
