@@ -1353,7 +1353,7 @@ async function generateReport(type) {
         setCell(row, 7, Number(r['導師日數']) || null);
         if (idx === 0) setCell(row, 8, totalDay);
         if (idx === 0) setCell(row, 9, info['薪俸'] ? Number(info['薪俸']) : null);
-        if (idx === 0) setCell(row, 10, info['學歷'] || null, fMed, aL);
+        if (idx === 0) setCell(row, 10, info['學歷'] || null, fMed, aCW);
         if (idx === 0) setCell(row, 11, info['教師證'] || null, fMed, aCW);
         setCell(row, 12, idx === 0 ? (r['備註'] || null) : null);
         rowNum++;
