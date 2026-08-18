@@ -404,6 +404,103 @@
     color: var(--muted);
     margin-top: 8px;
   }
+
+  /* ── Teacher filter ── */
+  .filter-btn {
+    flex: none;
+    margin-top: 8px;
+    width: 100%;
+    padding: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #f0f4ff;
+    color: #4a6fa5;
+    border: 1px dashed #8aaad8;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .filter-btn:active { opacity: 0.8; }
+
+  .filter-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 1000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .filter-panel {
+    background: var(--card);
+    border-radius: 18px 18px 0 0;
+    padding: 20px 16px 32px;
+    width: 100%;
+    max-width: 580px;
+    max-height: 80vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .filter-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .filter-panel-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--blue-dark);
+  }
+  .filter-panel-close {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    font-size: 1.1rem;
+    background: #eee;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .filter-slot-label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .teacher-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #fafaf8;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .teacher-card:active { opacity: 0.8; }
+  .teacher-card.status-asked    { background: #fff8e6; border-color: #f0c96e; }
+  .teacher-card.status-confirmed{ background: #f5f5f5; border-color: #ccc; cursor: not-allowed; opacity: 0.6; }
+  .teacher-card-name { font-weight: 600; font-size: 0.95rem; }
+  .teacher-card-note { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .avail-badge {
+    flex: none;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .badge-can-ask   { background: #e8f9f0; color: #4caf82; }
+  .badge-asked     { background: #fff3cd; color: #856404; }
+  .badge-confirmed { background: #f5f5f5; color: #888; }
+  .filter-empty {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    padding: 24px 0;
+  }
 </style>
 </head>
 <body>
@@ -500,6 +597,18 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Teacher filter modal -->
+<div class="filter-overlay" id="filterOverlay" style="display:none" role="dialog" aria-modal="true">
+  <div class="filter-panel" id="filterPanel">
+    <div class="filter-panel-header">
+      <span class="filter-panel-title">🔍 篩選可代老師</span>
+      <button class="filter-panel-close" id="filterCloseBtn" aria-label="關閉">✕</button>
+    </div>
+    <div class="filter-slot-label" id="filterSlotLabel"></div>
+    <div id="filterResultList"></div>
+  </div>
+</div>
 
 <script>
 /* ── constants ── */
@@ -615,6 +724,8 @@ function addItem() {
       </div>
     </div>
 
+    <button type="button" class="filter-btn">🔍 篩選可代老師</button>
+
     <div class="sys-fields">
       <div class="sys-label">系統欄位（可修改）</div>
       <div class="item-grid">
@@ -690,6 +801,8 @@ function addItem() {
     target.classList.toggle('open');
     this.textContent = (target.classList.contains('open') ? '▾ ' : '▸ ') + '月底補填欄位（假別、摘要、備註）';
   });
+
+  block.querySelector('.filter-btn').addEventListener('click', () => showFilterModal(block));
 }
 
 /* ── date / weekday helpers ── */
@@ -1218,6 +1331,121 @@ function clearAll() {
   document.getElementById('output').value = '';
 }
 
+/* ── teacher filter ── */
+function resolveFullDate(dateRaw) {
+  const s = formatDateText(dateRaw.trim());
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
+  if (!m) return '';
+  const d = resolveDate(+m[1], +m[2]);
+  if (!d) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}`;
+}
+
+function extractFirstPeriod(periodRaw) {
+  const s = periodRaw.trim();
+  if (!s) return '';
+  if (/^\d{2,}$/.test(s)) return s[0];
+  const rangeM = s.match(/^(\d+)[-~～]/);
+  if (rangeM) return rangeM[1];
+  const firstM = s.match(/^(\d+)/);
+  if (firstM) return firstM[1];
+  return '';
+}
+
+let filterTargetBlock = null;
+
+async function showFilterModal(block) {
+  if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
+
+  const checked = block.querySelector('.type-row input[type="radio"]:checked');
+  const isDay = checked && checked.value === 'day';
+  const dateRaw = block.querySelector('.f-date').value.trim();
+  const weekday = block.querySelector('.f-weekday').value.trim();
+  const periodRaw = block.querySelector('.f-period').value.trim();
+
+  const fullDate = resolveFullDate(dateRaw);
+  const period = isDay ? '' : extractFirstPeriod(periodRaw);
+  const type = isDay ? '日代' : '節代';
+
+  // 組合 label
+  const slotDesc = isDay
+    ? `日代・${dateRaw || '（未填日期）'}${weekday ? ' 星期' + weekday : ''}`
+    : `${dateRaw || '（未填日期）'}${weekday ? ' 星期' + weekday : ''} 第${period || '?'}節`;
+  document.getElementById('filterSlotLabel').textContent = slotDesc;
+
+  const list = document.getElementById('filterResultList');
+  list.innerHTML = '<div class="filter-empty">查詢中…</div>';
+  document.getElementById('filterOverlay').style.display = 'flex';
+  filterTargetBlock = block;
+
+  if (!weekday) {
+    list.innerHTML = '<div class="filter-empty">請先填寫星期欄位</div>';
+    return;
+  }
+  if (!isDay && !period) {
+    list.innerHTML = '<div class="filter-empty">請先填寫節次欄位</div>';
+    return;
+  }
+
+  try {
+    const weekdayChar = weekday.replace(/^星期/, '').trim()[0] || weekday[0];
+    const params = new URLSearchParams({
+      action: 'availability',
+      weekday: weekdayChar,
+      period: period,
+      type: type,
+      date: fullDate
+    });
+    const res = await fetch(gasUrl + '?' + params.toString(), { redirect: 'follow' });
+    const json = await res.json();
+    if (json.error) { list.innerHTML = `<div class="filter-empty" style="color:var(--error)">${json.error}</div>`; return; }
+    renderFilterResults(json.teachers || []);
+  } catch(e) {
+    list.innerHTML = `<div class="filter-empty" style="color:var(--error)">查詢失敗：${e.message}</div>`;
+  }
+}
+
+function renderFilterResults(teachers) {
+  const list = document.getElementById('filterResultList');
+  if (teachers.length === 0) {
+    list.innerHTML = '<div class="filter-empty">此時段沒有可代老師</div>';
+    return;
+  }
+
+  const order = { '可詢問': 0, '已詢問': 1, '已確認': 2 };
+  teachers.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+
+  list.innerHTML = teachers.map(t => {
+    const isBlocked = t.status === '已確認';
+    const cardClass = isBlocked ? 'status-confirmed' : t.status === '已詢問' ? 'status-asked' : '';
+    const badgeClass = isBlocked ? 'badge-confirmed' : t.status === '已詢問' ? 'badge-asked' : 'badge-can-ask';
+    const badgeText = t.status;
+    const dataAttr = isBlocked ? '' : `data-name="${t.name}"`;
+    return `<div class="teacher-card ${cardClass}" ${dataAttr} role="${isBlocked ? '' : 'button'}">
+      <div>
+        <div class="teacher-card-name">${t.name}</div>
+        ${t.note ? `<div class="teacher-card-note">${t.note}</div>` : ''}
+      </div>
+      <span class="avail-badge ${badgeClass}">${badgeText}</span>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('.teacher-card[data-name]').forEach(card => {
+    card.addEventListener('click', () => {
+      const name = card.dataset.name;
+      document.getElementById('subTeacher').value = name;
+      closeFilterModal();
+      showToast(name + ' 已選入');
+    });
+  });
+}
+
+function closeFilterModal() {
+  document.getElementById('filterOverlay').style.display = 'none';
+  filterTargetBlock = null;
+}
+
 /* ── init ── */
 document.getElementById('saveUrlBtn').addEventListener('click', saveSettings);
 document.getElementById('generateBtn').addEventListener('click', generateText);
@@ -1228,6 +1456,10 @@ document.getElementById('directAddBtn').addEventListener('click', directAdd);
 document.getElementById('addItemBtn').addEventListener('click', () => addItem());
 document.getElementById('refreshBtn').addEventListener('click', fetchAndRender);
 document.getElementById('filterMonth').addEventListener('input', renderList);
+document.getElementById('filterCloseBtn').addEventListener('click', closeFilterModal);
+document.getElementById('filterOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeFilterModal();
+});
 
 document.getElementById('settleMonth').addEventListener('input', function() {
   delete this.dataset.auto;

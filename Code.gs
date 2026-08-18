@@ -6,6 +6,9 @@
 
 var SHEET_NAME = '代課追蹤';
 var TEACHER_SHEET_NAME = '代課教師';
+var AVAIL_SHEET_NAME = '可代時段';
+var AVAIL_HEADERS = ['代課教師', '星期一', '星期二', '星期三', '星期四', '星期五', '可日代', '備註'];
+var WEEKDAY_NAMES = ['星期一', '星期二', '星期三', '星期四', '星期五'];
 var HEADERS = [
   'id', '狀態', '結算月份', '代課類型', '代課教師',
   '日期', '星期', '節次或日代', '班級', '科目', '授課教師',
@@ -99,6 +102,52 @@ function importTeachers() {
   SpreadsheetApp.getUi().alert('已匯入 ' + teachers.length + ' 筆代課教師資料！');
 }
 
+// 建立「可代時段」工作表（執行一次，之後直接在 Sheets 維護）
+function setupAvailability() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(AVAIL_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(AVAIL_SHEET_NAME);
+  } else {
+    sheet.clearContents();
+  }
+
+  sheet.getRange(1, 1, 1, AVAIL_HEADERS.length)
+    .setValues([AVAIL_HEADERS])
+    .setFontWeight('bold')
+    .setBackground('#e8eaf6');
+  sheet.setFrozenRows(1);
+
+  var widths3 = [100, 120, 120, 120, 120, 120, 60, 250];
+  for (var i = 0; i < widths3.length; i++) {
+    sheet.setColumnWidth(i + 1, widths3[i]);
+  }
+
+  // 初始資料（從 substitute-teacher-availability/代課老師可代時段_整理待確認.md 整理）
+  var initialData = [
+    ['淑珠老師', '', '1,2,3,4,5,6,7', '', '', '1,2,3,4,5,6,7', '是', '每週二、五整天'],
+    ['吳洸堯',   '1,2,3,4', '1,2,3,4', '1,2,3,4', '1,2,3,4', '1,2,3,4', '否', '平日上午'],
+    ['黃詺媞',   '', '1,2,3,4,5,6,7', '', '', '', '是', '週二'],
+    ['王耕玄',   '1,2,3', '1,2,3', '1,2,3', '1,2,3', '1,2,3', '否', '週一至週五第1-3節'],
+    ['李佳真',   '1,2,3,4,5,6,7', '1,2,3,4,5,6,7', '1,2,3,4,5,6,7', '1,2,3,4,5,6,7', '1,2,3,4,5,6,7', '是', '皆可'],
+    ['黃湘美',   '1,2,3,4', '1,2,3,4,5,6', '1,2,3,4', '1,2,3,4,5,6', '1,2,3,4,5,6', '否', '週一三12:00前；週二四五15:30前'],
+    ['林佩欣',   '1,2,3,4,5,6,7', '1,2,3,4,5,6,7', '1,2,3,4,5,6,7', '1,2,3,4,5,6,7', '1,2,3,4,5,6,7', '是', '皆可'],
+    ['林貝蒂',   '5,6,7', '1,2,3,4,5,6,7', '1,2,3,4,5,6,7', '1,2,3,4', '1,2,3,4,5,6,7', '否', '週一12:00前不可；週四12:00後不可'],
+    ['曾唯皓',   '1,2,3,4,5,6', '1,2,3,4,5,6', '1,2,3,4,5,6', '1,2,3,4,5,6', '1,2,3,4,5,6', '否', '週一至週五至第6節'],
+    ['譚定群',   '1,2,3,4', '', '1,2,3,4', '1,2,3,4', '', '否', '週一、三、四上午至12:40'],
+    ['吳麗娟',   '', '1,2,3,4,5,6,7', '', '1,2,3,4,5,6,7', '1,2,3,4,5,6,7', '是', '週二、四、五'],
+    ['吳慧鈴',   '1,2,3,4,5,6,7', '1,2,3,4,5,6,7', '', '', '1,2,3,4,5,6,7', '是', '週一五優先；週二備用'],
+    ['王怡雯',   '1,2,3,4,5,6,7', '1,2,3,4,5,6,7', '1,2,3,4', '1,2,3,4', '1,2,3,4', '是', '週一二整天；週三至五第1-4節'],
+    ['許芳綺',   '', '', '', '', '', '否', '資料待確認'],
+    ['楊惠雯',   '', '', '', '', '', '否', '資料待確認'],
+    ['曾琬翎',   '', '', '', '', '', '否', '資料待確認'],
+    ['李佩郁',   '', '', '', '', '', '否', '資料待確認']
+  ];
+
+  sheet.getRange(2, 1, initialData.length, AVAIL_HEADERS.length).setValues(initialData);
+  SpreadsheetApp.getUi().alert('「可代時段」工作表設定完成！共 ' + initialData.length + ' 位老師。');
+}
+
 // 代課教師資料已匯入 Google Sheets，此陣列清空以避免個資存在公開 repo
 // 如需重新匯入，請自行填入資料後執行 importTeachers()
 var TEACHER_DATA = [
@@ -128,6 +177,118 @@ function doGet(e) {
         teachers.push(tobj);
       }
       return jsonResponse({ teachers: teachers });
+    }
+
+    // 篩選可代老師
+    if (action === 'availability') {
+      var weekday = (e.parameter.weekday || '').trim();   // '一','二',...
+      var period  = (e.parameter.period  || '').trim();   // '1'~'7'
+      var atype   = (e.parameter.type    || '節代').trim(); // '節代' or '日代'
+      var adate   = (e.parameter.date    || '').trim();   // 'yyyy/MM/dd'
+
+      var avSheet = ss.getSheetByName(AVAIL_SHEET_NAME);
+      if (!avSheet) return jsonResponse({ teachers: [], error: '請先執行 setupAvailability() 建立可代時段工作表' });
+
+      var avData = avSheet.getDataRange().getValues();
+      if (avData.length <= 1) return jsonResponse({ teachers: [] });
+      var avH = avData[0].map(String);
+
+      var nameIdx   = avH.indexOf('代課教師');
+      var canDayIdx = avH.indexOf('可日代');
+      var noteIdx   = avH.indexOf('備註');
+      var wdIdx     = weekday ? avH.indexOf('星期' + weekday) : -1;
+
+      // 篩選符合條件的老師
+      var candidates = [];
+      for (var ci = 1; ci < avData.length; ci++) {
+        var crow = avData[ci];
+        var cname    = String(crow[nameIdx]   || '').trim();
+        var canDay   = String(crow[canDayIdx] || '').trim();
+        var cnote    = noteIdx >= 0 ? String(crow[noteIdx] || '').trim() : '';
+        var wdPeriods = (wdIdx >= 0) ? String(crow[wdIdx] || '').trim() : '';
+
+        if (!cname) continue;
+
+        // 所有星期欄是否全空（資料待確認）
+        var allEmpty = true;
+        for (var wi = 0; wi < WEEKDAY_NAMES.length; wi++) {
+          var wIdx2 = avH.indexOf(WEEKDAY_NAMES[wi]);
+          if (wIdx2 >= 0 && String(crow[wIdx2] || '').trim() !== '') { allEmpty = false; break; }
+        }
+        if (allEmpty && canDay !== '是') continue; // 完全沒資料，略過
+
+        var eligible = false;
+        if (atype === '日代') {
+          eligible = (canDay === '是') && (wdPeriods !== '');
+        } else {
+          if (wdPeriods && period) {
+            var avPeriods = wdPeriods.split(',').map(function(p) { return p.trim(); });
+            eligible = avPeriods.indexOf(period) >= 0;
+          }
+        }
+
+        if (eligible) candidates.push({ name: cname, note: cnote });
+      }
+
+      // 比對代課追蹤，找衝突
+      var conflicts = {};
+      var trackSheet2 = ss.getSheetByName(SHEET_NAME);
+      if (trackSheet2 && adate) {
+        var td = trackSheet2.getDataRange().getValues();
+        var th = td[0].map(String);
+        var tdDateIdx    = th.indexOf('日期');
+        var tdStatusIdx  = th.indexOf('狀態');
+        var tdTeacherIdx = th.indexOf('代課教師');
+        var tdPeriodIdx  = th.indexOf('節次或日代');
+        var tdTypeIdx    = th.indexOf('代課類型');
+
+        for (var ti2 = 1; ti2 < td.length; ti2++) {
+          var tr2 = td[ti2];
+          var tStatus2 = String(tr2[tdStatusIdx] || '').trim();
+          if (tStatus2 === '已取消') continue;
+
+          var tRawDate = tr2[tdDateIdx];
+          var tDateStr = '';
+          if (tRawDate instanceof Date) {
+            tDateStr = Utilities.formatDate(tRawDate, Session.getScriptTimeZone(), 'yyyy/MM/dd');
+          } else {
+            tDateStr = String(tRawDate || '').split(' ')[0].trim();
+          }
+          if (tDateStr !== adate) continue;
+
+          var tTeacher2 = String(tr2[tdTeacherIdx] || '').replace(/老師$/, '').trim();
+          var tType2    = String(tr2[tdTypeIdx]    || '').trim();
+          var tPeriod2  = String(tr2[tdPeriodIdx]  || '').trim();
+
+          // 衝突判斷
+          var isConflict = false;
+          if (tType2 === '日代' || atype === '日代') {
+            isConflict = true;
+          } else if (period) {
+            var tPnums = tPeriod2.match(/\d/g) || [];
+            isConflict = tPnums.indexOf(period) >= 0;
+          } else {
+            isConflict = true;
+          }
+
+          if (isConflict) {
+            var prev = conflicts[tTeacher2];
+            if (tStatus2 === '已確認' || tStatus2 === '已完成') {
+              conflicts[tTeacher2] = '已確認';
+            } else if (tStatus2 === '已詢問' && prev !== '已確認') {
+              conflicts[tTeacher2] = '已詢問';
+            }
+          }
+        }
+      }
+
+      // 組合結果
+      var avResult = candidates.map(function(c) {
+        var stripped = c.name.replace(/老師$/, '').trim();
+        var cs = conflicts[stripped] || conflicts[c.name] || '可詢問';
+        return { name: c.name, status: cs, note: c.note };
+      });
+      return jsonResponse({ teachers: avResult });
     }
 
     // 讀取代課追蹤清單
