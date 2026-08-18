@@ -501,6 +501,52 @@
     font-size: 0.9rem;
     padding: 24px 0;
   }
+
+  /* Per-item teacher selection */
+  .sub-teacher-block {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #f5f9fd;
+  }
+  .sub-teacher-block .field-label { margin-top: 0; }
+  .teacher-mode-row {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+  }
+  .teacher-mode-row label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    font-weight: 400;
+    cursor: pointer;
+  }
+  .teacher-mode-row input[type="radio"] { width: auto; margin: 0; }
+  .teacher-selected-display {
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: var(--success);
+    font-weight: 600;
+  }
+  .filter-inline-result {
+    margin-top: 8px;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+  .f-weekday-display {
+    font-size: 0.88rem;
+    color: var(--blue-dark);
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 10px 0 10px 6px;
+    line-height: 1;
+  }
+  .date-row { display: flex; align-items: center; gap: 0; }
+  .date-row .f-date { flex: 1; }
 </style>
 </head>
 <body>
@@ -525,16 +571,9 @@
 
   <!-- Form -->
   <div class="card">
-    <div class="row2">
-      <div>
-        <label for="subTeacher">代課老師</label>
-        <input id="subTeacher" type="text" placeholder="輸入姓名搜尋…" autocomplete="off" list="teacherList">
-        <datalist id="teacherList"></datalist>
-      </div>
-      <div>
-        <label for="settleMonth">結算月份</label>
-        <input id="settleMonth" type="text" placeholder="例：114年6月">
-      </div>
+    <div>
+      <label for="settleMonth">結算月份</label>
+      <input id="settleMonth" type="text" placeholder="例：114年6月">
     </div>
 
     <label>代課項目（可新增多筆）</label>
@@ -680,6 +719,29 @@ function updateTypeVisibility(block) {
   block.querySelectorAll('.period-only').forEach(el => el.style.display = isDay ? 'none' : '');
   block.querySelectorAll('.day-only').forEach(el => el.style.display = isDay ? '' : 'none');
   block.querySelector('.class-wrapper').classList.toggle('full', isDay);
+  // Day mode: force specify mode (no filter for day type)
+  if (isDay) {
+    const specifyRadio = block.querySelector('input[type="radio"][value="specify"]');
+    if (specifyRadio && !specifyRadio.checked) {
+      specifyRadio.checked = true;
+      updateTeacherMode(block);
+    }
+  }
+}
+
+function updateTeacherMode(block) {
+  const modeRadio = block.querySelector('input[type="radio"][name^="tmode-"]:checked');
+  const isFilter = modeRadio && modeRadio.value === 'filter';
+  block.querySelector('.teacher-specify-area').style.display = isFilter ? 'none' : '';
+  block.querySelector('.teacher-filter-area').style.display = isFilter ? '' : 'none';
+  // Clear selected display and results when switching modes
+  const display = block.querySelector('.teacher-selected-display');
+  if (display) { display.style.display = 'none'; display.textContent = ''; }
+  const resultArea = block.querySelector('.filter-inline-result');
+  if (resultArea) { resultArea.style.display = 'none'; resultArea.innerHTML = ''; }
+  if (isFilter) {
+    block.querySelector('.f-sub-teacher').value = '';
+  }
 }
 
 /* ── add item ── */
@@ -700,16 +762,35 @@ function addItem() {
     <div class="item-grid">
       <div>
         <label class="field-label">日期</label>
-        <input type="text" class="f-date" placeholder="例：623 或 9/1～9/5">
-      </div>
-      <div>
-        <label class="field-label">星期</label>
-        <input type="text" class="f-weekday" placeholder="例：三 或 一～五">
+        <div class="date-row">
+          <input type="text" class="f-date" placeholder="例：623 或 9/1～9/5">
+          <span class="f-weekday-display"></span>
+        </div>
+        <input type="hidden" class="f-weekday">
       </div>
       <div class="period-only">
         <label class="field-label">節次</label>
         <input type="text" class="f-period" placeholder="例：136 或 1-5">
       </div>
+    </div>
+
+    <div class="sub-teacher-block">
+      <label class="field-label">代課老師</label>
+      <div class="teacher-mode-row period-only">
+        <label><input type="radio" name="tmode-${id}" value="specify" checked> 指定老師</label>
+        <label><input type="radio" name="tmode-${id}" value="filter"> 幫我篩選</label>
+      </div>
+      <div class="teacher-specify-area">
+        <input type="text" class="f-sub-teacher" placeholder="輸入姓名搜尋…" autocomplete="off" list="teacherList">
+      </div>
+      <div class="teacher-filter-area" style="display:none;">
+        <button type="button" class="filter-btn">🔍 篩選可代老師</button>
+        <div class="filter-inline-result" style="display:none;"></div>
+      </div>
+      <div class="teacher-selected-display" style="display:none;"></div>
+    </div>
+
+    <div class="item-grid" style="margin-top:10px;">
       <div class="class-wrapper">
         <label class="field-label">班級</label>
         <input type="text" class="f-class" placeholder="例：201">
@@ -723,8 +804,6 @@ function addItem() {
         <input type="text" class="f-teacher" placeholder="例：陳">
       </div>
     </div>
-
-    <button type="button" class="filter-btn">🔍 篩選可代老師</button>
 
     <div class="sys-fields">
       <div class="sys-label">系統欄位（可修改）</div>
@@ -777,19 +856,22 @@ function addItem() {
     r.addEventListener('change', () => updateTypeVisibility(block));
   });
 
+  block.querySelectorAll(`input[name="tmode-${id}"]`).forEach(r => {
+    r.addEventListener('change', () => updateTeacherMode(block));
+  });
+
   const dateInput = block.querySelector('.f-date');
   const weekdayInput = block.querySelector('.f-weekday');
+  const weekdayDisplay = block.querySelector('.f-weekday-display');
   const periodInput = block.querySelector('.f-period');
   const periodCountInput = block.querySelector('.f-period-count');
 
   dateInput.addEventListener('input', () => {
-    if (weekdayInput.value.trim() !== '' && !weekdayInput.dataset.auto) return;
     const guess = guessWeekday(dateInput.value);
-    if (guess) { weekdayInput.value = guess; weekdayInput.dataset.auto = '1'; }
-    else if (weekdayInput.dataset.auto) weekdayInput.value = '';
+    weekdayInput.value = guess || '';
+    weekdayDisplay.textContent = guess ? `（${guess}）` : '';
+    autoFillSettleMonth(dateInput.value);
   });
-  dateInput.addEventListener('input', () => { autoFillSettleMonth(dateInput.value); });
-  weekdayInput.addEventListener('input', () => { delete weekdayInput.dataset.auto; });
 
   periodInput.addEventListener('input', () => {
     const count = estimatePeriodCount(periodInput.value);
@@ -802,7 +884,7 @@ function addItem() {
     this.textContent = (target.classList.contains('open') ? '▾ ' : '▸ ') + '月底補填欄位（假別、摘要、備註）';
   });
 
-  block.querySelector('.filter-btn').addEventListener('click', () => showFilterModal(block));
+  block.querySelector('.filter-btn').addEventListener('click', () => showInlineFilter(block));
 }
 
 /* ── date / weekday helpers ── */
@@ -943,6 +1025,7 @@ function getItems() {
     const periodCountEl = block.querySelector('.f-period-count');
     return {
       type: isDay ? 'day' : 'period',
+      subTeacher: block.querySelector('.f-sub-teacher').value.trim(),
       date: block.querySelector('.f-date').value.trim(),
       weekday: block.querySelector('.f-weekday').value.trim(),
       period: block.querySelector('.f-period').value.trim(),
@@ -974,14 +1057,28 @@ function formatItemFields(it) {
 }
 
 function buildLineMessage() {
-  const subTeacher = getVal('subTeacher');
   const items = getItems();
-  const lines = items.map((it, i) => {
-    const prefix = items.length > 1 ? `${i + 1}. ` : '';
-    const indent = items.length > 1 ? '　' : '';
-    return formatItemFields(it).map((line, idx) => (idx === 0 ? prefix : indent) + line).join('\n');
-  }).join('\n\n');
-  return `${subTeacher ? subTeacher + '老師' : ''}您好，\n想請問您以下時間是否方便幫忙代課？\n\n${lines}\n\n如果有方便的時間，再麻煩您回覆我，謝謝老師。`;
+  // Group by subTeacher, preserving insertion order
+  const teacherOrder = [];
+  const groups = {};
+  items.forEach(function(it) {
+    const key = it.subTeacher || '';
+    if (!groups[key]) { groups[key] = []; teacherOrder.push(key); }
+    groups[key].push(it);
+  });
+
+  const blocks = teacherOrder.map(function(teacher) {
+    const groupItems = groups[teacher];
+    const teacherLabel = teacher ? teacher + '老師' : '';
+    const lines = groupItems.map(function(it, i) {
+      const prefix = groupItems.length > 1 ? (i + 1) + '. ' : '';
+      const indent = groupItems.length > 1 ? '　' : '';
+      return formatItemFields(it).map(function(line, idx) { return (idx === 0 ? prefix : indent) + line; }).join('\n');
+    }).join('\n\n');
+    return teacherLabel + '您好，\n想請問您以下時間是否方便幫忙代課？\n\n' + lines + '\n\n如果有方便的時間，再麻煩您回覆我，謝謝老師。';
+  });
+
+  return blocks.join('\n\n────────────\n\n');
 }
 
 function generateText() {
@@ -1174,7 +1271,6 @@ async function confirmPendingItem(pi, ii) {
 
 /* ── copy inquiry message (no Sheets write) ── */
 async function copyMsg() {
-  const subTeacherName = getVal('subTeacher');
   const settleMonth = getVal('settleMonth');
   const items = getItems();
   const text = buildLineMessage();
@@ -1182,26 +1278,39 @@ async function copyMsg() {
 
   const copyOk = await copyTextContent(text);
 
-  // 存到詢問中清單
-  const pending = {
-    pendingId: 'p-' + Date.now(),
-    subTeacher: resolveTeacherName(subTeacherName),
-    settleMonth: settleMonth,
-    items: items.map(it => ({
-      type: it.type,
-      dateFormatted: formatDateText(it.date),
-      weekday: it.weekday,
-      periodFormatted: it.type === 'period' ? formatPeriodText(it.period) : '',
-      className: it.className,
-      subject: it.type === 'period' ? formatSubjects(it.subject) : '',
-      teacherText: it.teacher ? it.teacher + '老師' : '',
-      periodCount: it.periodCount,
-      dayCount: it.dayCount,
-      mentorCount: it.mentorCount
-    }))
-  };
+  // 依代課老師分組，每組存一筆 pending
+  const teacherOrder = [];
+  const groups = {};
+  items.forEach(function(it) {
+    const key = resolveTeacherName(it.subTeacher || '');
+    if (!groups[key]) { groups[key] = []; teacherOrder.push(key); }
+    groups[key].push(it);
+  });
+
   const list = loadPending();
-  list.push(pending);
+  teacherOrder.forEach(function(teacher) {
+    const groupItems = groups[teacher];
+    const pending = {
+      pendingId: 'p-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5),
+      subTeacher: teacher,
+      settleMonth: settleMonth,
+      items: groupItems.map(function(it) {
+        return {
+          type: it.type,
+          dateFormatted: formatDateText(it.date),
+          weekday: it.weekday,
+          periodFormatted: it.type === 'period' ? formatPeriodText(it.period) : '',
+          className: it.className,
+          subject: it.type === 'period' ? formatSubjects(it.subject) : '',
+          teacherText: it.teacher ? it.teacher + '老師' : '',
+          periodCount: it.periodCount,
+          dayCount: it.dayCount,
+          mentorCount: it.mentorCount
+        };
+      })
+    };
+    list.push(pending);
+  });
   savePending(list);
   renderPending();
 
@@ -1210,29 +1319,30 @@ async function copyMsg() {
 
 /* ── direct add (already confirmed) ── */
 async function directAdd() {
-  const subTeacherName = getVal('subTeacher');
   const settleMonth = getVal('settleMonth');
   const items = getItems();
   if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
   const now = nowStr();
-  const rows = items.map(it => ({
-    id: generateId(),
-    狀態: '已確認',
-    結算月份: settleMonth,
-    代課類型: it.type === 'period' ? '節代' : '日代',
-    代課教師: subTeacherName ? resolveTeacherName(subTeacherName) + '老師' : '',
-    日期: formatDateText(it.date),
-    星期: it.weekday,
-    節次或日代: it.type === 'period' ? formatPeriodText(it.period) : '日代',
-    班級: it.className,
-    科目: it.type === 'period' ? formatSubjects(it.subject) : '',
-    授課教師: it.teacher ? it.teacher + '老師' : '',
-    代課節數: it.periodCount,
-    代課日數: it.dayCount,
-    導師日數: it.mentorCount,
-    備註: it.note, 假別: it.leaveType, 摘要: it.summary,
-    建立時間: now, 更新時間: now
-  }));
+  const rows = items.map(function(it) {
+    return {
+      id: generateId(),
+      狀態: '已確認',
+      結算月份: settleMonth,
+      代課類型: it.type === 'period' ? '節代' : '日代',
+      代課教師: it.subTeacher ? resolveTeacherName(it.subTeacher) + '老師' : '',
+      日期: formatDateText(it.date),
+      星期: it.weekday,
+      節次或日代: it.type === 'period' ? formatPeriodText(it.period) : '日代',
+      班級: it.className,
+      科目: it.type === 'period' ? formatSubjects(it.subject) : '',
+      授課教師: it.teacher ? it.teacher + '老師' : '',
+      代課節數: it.periodCount,
+      代課日數: it.dayCount,
+      導師日數: it.mentorCount,
+      備註: it.note, 假別: it.leaveType, 摘要: it.summary,
+      建立時間: now, 更新時間: now
+    };
+  });
 
   const btn = document.getElementById('directAddBtn');
   btn.disabled = true; btn.textContent = '儲存中…';
@@ -1323,7 +1433,6 @@ function renderList() {
 
 /* ── clear form ── */
 function clearAll() {
-  document.getElementById('subTeacher').value = '';
   document.getElementById('settleMonth').value = '';
   document.getElementById('itemList').innerHTML = '';
   itemCount = 0;
@@ -1338,24 +1447,56 @@ function resolveFullDate(dateRaw) {
   if (!m) return '';
   const d = resolveDate(+m[1], +m[2]);
   if (!d) return '';
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}`;
+  const pad = function(n) { return String(n).padStart(2, '0'); };
+  return d.getFullYear() + '/' + pad(d.getMonth()+1) + '/' + pad(d.getDate());
 }
 
-function extractFirstPeriod(periodRaw) {
+function extractAllPeriods(periodRaw) {
   const s = periodRaw.trim();
-  if (!s) return '';
-  if (/^\d{2,}$/.test(s)) return s[0];
-  const rangeM = s.match(/^(\d+)[-~～]/);
-  if (rangeM) return rangeM[1];
-  const firstM = s.match(/^(\d+)/);
-  if (firstM) return firstM[1];
-  return '';
+  if (!s) return [];
+  const rangeM = s.match(/^(\d+)[-~～](\d+)$/);
+  if (rangeM) {
+    const start = +rangeM[1], end = +rangeM[2];
+    const result = [];
+    const lo = Math.min(start, end), hi = Math.max(start, end);
+    for (let i = lo; i <= hi; i++) result.push(String(i));
+    return result;
+  }
+  if (/^\d{2,}$/.test(s)) return s.split('').filter(function(c) { return /\d/.test(c); });
+  const parts = s.split(/[、,，]/).map(function(p) { return p.trim(); }).filter(function(p) { return /^\d+$/.test(p); });
+  if (parts.length > 0) return parts;
+  if (/^\d$/.test(s)) return [s];
+  return [s];
 }
 
-let filterTargetBlock = null;
+async function fetchAvailabilityIntersection(fullDate, weekdayChar, periods, type) {
+  const results = await Promise.all(periods.map(async function(period) {
+    const params = new URLSearchParams({ action: 'availability', weekday: weekdayChar, period: period, type: type, date: fullDate });
+    const res = await fetch(gasUrl + '?' + params.toString(), { redirect: 'follow' });
+    const json = await res.json();
+    return json.teachers || [];
+  }));
 
-async function showFilterModal(block) {
+  if (results.length === 0) return [];
+  if (results.length === 1) return results[0];
+
+  // Keep only teachers present in ALL results; compute worst status
+  return results[0].filter(function(t) {
+    return results.every(function(r) { return r.some(function(t2) { return t2.name === t.name; }); });
+  }).map(function(t) {
+    let worstStatus = '可詢問';
+    results.forEach(function(r) {
+      const match = r.find(function(t2) { return t2.name === t.name; });
+      if (match) {
+        if (match.status === '已確認') worstStatus = '已確認';
+        else if (match.status === '已詢問' && worstStatus !== '已確認') worstStatus = '已詢問';
+      }
+    });
+    return { name: t.name, note: t.note, status: worstStatus };
+  });
+}
+
+async function showInlineFilter(block) {
   if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
 
   const checked = block.querySelector('.type-row input[type="radio"]:checked');
@@ -1364,78 +1505,69 @@ async function showFilterModal(block) {
   const weekday = block.querySelector('.f-weekday').value.trim();
   const periodRaw = block.querySelector('.f-period').value.trim();
 
+  if (!weekday) { showToast('請先填寫日期（自動判斷星期）', true); return; }
+  if (!isDay && !periodRaw) { showToast('請先填寫節次', true); return; }
+
   const fullDate = resolveFullDate(dateRaw);
-  const period = isDay ? '' : extractFirstPeriod(periodRaw);
+  const weekdayChar = weekday.replace(/^星期/, '').trim()[0] || weekday[0];
   const type = isDay ? '日代' : '節代';
 
-  // 組合 label
-  const slotDesc = isDay
-    ? `日代・${dateRaw || '（未填日期）'}${weekday ? ' 星期' + weekday : ''}`
-    : `${dateRaw || '（未填日期）'}${weekday ? ' 星期' + weekday : ''} 第${period || '?'}節`;
-  document.getElementById('filterSlotLabel').textContent = slotDesc;
-
-  const list = document.getElementById('filterResultList');
-  list.innerHTML = '<div class="filter-empty">查詢中…</div>';
-  document.getElementById('filterOverlay').style.display = 'flex';
-  filterTargetBlock = block;
-
-  if (!weekday) {
-    list.innerHTML = '<div class="filter-empty">請先填寫星期欄位</div>';
-    return;
-  }
-  if (!isDay && !period) {
-    list.innerHTML = '<div class="filter-empty">請先填寫節次欄位</div>';
-    return;
-  }
+  const resultArea = block.querySelector('.filter-inline-result');
+  resultArea.style.display = '';
+  resultArea.innerHTML = '<div class="filter-empty">查詢中…</div>';
 
   try {
-    const weekdayChar = weekday.replace(/^星期/, '').trim()[0] || weekday[0];
-    const params = new URLSearchParams({
-      action: 'availability',
-      weekday: weekdayChar,
-      period: period,
-      type: type,
-      date: fullDate
-    });
-    const res = await fetch(gasUrl + '?' + params.toString(), { redirect: 'follow' });
-    const json = await res.json();
-    if (json.error) { list.innerHTML = `<div class="filter-empty" style="color:var(--error)">${json.error}</div>`; return; }
-    renderFilterResults(json.teachers || []);
+    let teachers;
+    if (isDay) {
+      const params = new URLSearchParams({ action: 'availability', weekday: weekdayChar, period: '', type: type, date: fullDate });
+      const res = await fetch(gasUrl + '?' + params.toString(), { redirect: 'follow' });
+      const json = await res.json();
+      if (json.error) { resultArea.innerHTML = '<div class="filter-empty" style="color:var(--error)">' + json.error + '</div>'; return; }
+      teachers = json.teachers || [];
+    } else {
+      const periods = extractAllPeriods(periodRaw);
+      if (periods.length === 0) { resultArea.innerHTML = '<div class="filter-empty">無法解析節次</div>'; return; }
+      teachers = await fetchAvailabilityIntersection(fullDate, weekdayChar, periods, type);
+    }
+    renderInlineFilterResults(block, teachers);
   } catch(e) {
-    list.innerHTML = `<div class="filter-empty" style="color:var(--error)">查詢失敗：${e.message}</div>`;
+    resultArea.innerHTML = '<div class="filter-empty" style="color:var(--error)">查詢失敗：' + e.message + '</div>';
   }
 }
 
-function renderFilterResults(teachers) {
-  const list = document.getElementById('filterResultList');
+function renderInlineFilterResults(block, teachers) {
+  const resultArea = block.querySelector('.filter-inline-result');
   if (teachers.length === 0) {
-    list.innerHTML = '<div class="filter-empty">此時段沒有可代老師</div>';
+    resultArea.innerHTML = '<div class="filter-empty">此時段沒有可代老師</div>';
     return;
   }
 
   const order = { '可詢問': 0, '已詢問': 1, '已確認': 2 };
-  teachers.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+  teachers.sort(function(a, b) { return ((order[a.status] != null ? order[a.status] : 9) - (order[b.status] != null ? order[b.status] : 9)); });
 
-  list.innerHTML = teachers.map(t => {
+  resultArea.innerHTML = teachers.map(function(t) {
     const isBlocked = t.status === '已確認';
     const cardClass = isBlocked ? 'status-confirmed' : t.status === '已詢問' ? 'status-asked' : '';
     const badgeClass = isBlocked ? 'badge-confirmed' : t.status === '已詢問' ? 'badge-asked' : 'badge-can-ask';
-    const badgeText = t.status;
-    const dataAttr = isBlocked ? '' : `data-name="${t.name}"`;
-    return `<div class="teacher-card ${cardClass}" ${dataAttr} role="${isBlocked ? '' : 'button'}">
-      <div>
-        <div class="teacher-card-name">${t.name}</div>
-        ${t.note ? `<div class="teacher-card-note">${t.note}</div>` : ''}
-      </div>
-      <span class="avail-badge ${badgeClass}">${badgeText}</span>
-    </div>`;
+    const dataAttr = isBlocked ? '' : 'data-name="' + t.name + '"';
+    return '<div class="teacher-card ' + cardClass + '" ' + dataAttr + ' role="' + (isBlocked ? '' : 'button') + '">' +
+      '<div>' +
+      '<div class="teacher-card-name">' + t.name + '</div>' +
+      (t.note ? '<div class="teacher-card-note">' + t.note + '</div>' : '') +
+      '</div>' +
+      '<span class="avail-badge ' + badgeClass + '">' + t.status + '</span>' +
+      '</div>';
   }).join('');
 
-  list.querySelectorAll('.teacher-card[data-name]').forEach(card => {
-    card.addEventListener('click', () => {
+  resultArea.querySelectorAll('.teacher-card[data-name]').forEach(function(card) {
+    card.addEventListener('click', function() {
       const name = card.dataset.name;
-      document.getElementById('subTeacher').value = name;
-      closeFilterModal();
+      block.querySelector('.f-sub-teacher').value = name;
+      const display = block.querySelector('.teacher-selected-display');
+      display.textContent = '✓ 已選：' + name + '老師';
+      display.style.display = '';
+      resultArea.style.display = 'none';
+      resultArea.innerHTML = '';
       showToast(name + ' 已選入');
     });
   });
@@ -1443,7 +1575,6 @@ function renderFilterResults(teachers) {
 
 function closeFilterModal() {
   document.getElementById('filterOverlay').style.display = 'none';
-  filterTargetBlock = null;
 }
 
 /* ── init ── */
@@ -1689,5 +1820,6 @@ document.getElementById('archiveBtn').addEventListener('click', async function()
   document.getElementById('reportMonth').value = roc + '年' + m + '月';
 })();
 </script>
+<datalist id="teacherList"></datalist>
 </body>
 </html>
