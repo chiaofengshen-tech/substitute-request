@@ -30,9 +30,12 @@
   }
   .container { max-width: 580px; margin: 0 auto; }
   h1 {
-    font-size: 1.3rem;
+    font-family: "PingFang TC", "Noto Sans TC", sans-serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
     text-align: center;
-    margin: 8px 0 4px;
+    margin: 10px 0 18px;
     color: var(--blue-dark);
   }
   .subtitle {
@@ -362,7 +365,13 @@
     cursor: pointer;
   }
   .del-btn:hover { background: #f3c0c0; }
-  .pending-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .pending-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
   .pending-table th {
     background: #fff8e6;
     color: #7a6010;
@@ -376,7 +385,16 @@
     padding: 7px 8px;
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
+  .pending-table th:nth-child(1) { width: 10%; }
+  .pending-table th:nth-child(2) { width: 8%; }
+  .pending-table th:nth-child(3) { width: 15%; }
+  .pending-table th:nth-child(4) { width: 10%; }
+  .pending-table th:nth-child(5) { width: 11%; }
+  .pending-table th:nth-child(6) { width: 17%; }
+  .pending-table th:nth-child(7) { width: 29%; }
   .pending-table tr:hover td { background: #fffbf0; }
   .editable-period {
     border: 1px solid transparent;
@@ -388,19 +406,19 @@
   }
   .editable-period:hover { border-color: var(--blue); background: #fff; }
   .editable-period:focus { outline: none; border-color: var(--blue-dark); background: #fff; }
-  .pending-actions { display: flex; gap: 6px; }
+  .pending-actions { display: flex; flex-wrap: wrap; gap: 5px; }
   .btn-confirm {
-    flex: none; padding: 5px 10px; font-size: 0.8rem;
+    flex: none; padding: 5px 7px; font-size: 0.75rem;
     background: var(--success); color: white;
     border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
   }
   .btn-partial {
-    flex: none; padding: 5px 10px; font-size: 0.8rem;
+    flex: none; padding: 5px 7px; font-size: 0.75rem;
     background: #fff3cd; color: #856404;
     border: 1px solid #f0c96e; border-radius: 6px; cursor: pointer; font-weight: 600;
   }
   .btn-pend-del {
-    flex: none; padding: 5px 10px; font-size: 0.8rem;
+    flex: none; padding: 5px 7px; font-size: 0.75rem;
     background: #fdeaea; color: #a14444;
     border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
   }
@@ -611,8 +629,7 @@
 </head>
 <body>
 <div class="container">
-  <h1>📚 代課詢問 ＆ 追蹤管理</h1>
-  <p class="subtitle">產生 LINE 詢問訊息，並同步記錄到 Google Sheets</p>
+  <h1>代課詢問 ＆ 追蹤管理</h1>
 
   <div class="notice" id="connectionNotice">⚠️ 尚未確認 Google Sheets 連線，請檢查 Web App 設定。</div>
 
