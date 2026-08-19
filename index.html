@@ -394,6 +394,11 @@
     background: var(--success); color: white;
     border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
   }
+  .btn-partial {
+    flex: none; padding: 5px 10px; font-size: 0.8rem;
+    background: #fff3cd; color: #856404;
+    border: 1px solid #f0c96e; border-radius: 6px; cursor: pointer; font-weight: 600;
+  }
   .btn-pend-del {
     flex: none; padding: 5px 10px; font-size: 0.8rem;
     background: #fdeaea; color: #a14444;
@@ -652,6 +657,18 @@
   </div>
 
   <!-- Tracking List -->
+  <div class="card">
+    <div class="list-header">
+      <span class="section-title">📋 代課追蹤清單</span>
+      <div class="list-controls">
+        <input id="filterMonth" placeholder="篩選月份…" title="輸入月份關鍵字篩選">
+        <button id="refreshBtn">↻ 重新整理</button>
+      </div>
+    </div>
+    <div id="trackingList"><p class="empty-state">請先設定 Web App URL，再按重新整理。</p></div>
+    <div class="count-label" id="countLabel"></div>
+  </div>
+
   <!-- 報表產生 -->
   <div class="card">
     <span class="section-title">📊 月底報表產生</span>
@@ -666,18 +683,6 @@
         <button class="btn-secondary" id="archiveBtn">📦 封存本月資料</button>
       </div>
     </div>
-  </div>
-
-  <div class="card">
-    <div class="list-header">
-      <span class="section-title">📋 代課追蹤清單</span>
-      <div class="list-controls">
-        <input id="filterMonth" placeholder="篩選月份…" title="輸入月份關鍵字篩選">
-        <button id="refreshBtn">↻ 重新整理</button>
-      </div>
-    </div>
-    <div id="trackingList"><p class="empty-state">請先設定 Web App URL，再按重新整理。</p></div>
-    <div class="count-label" id="countLabel"></div>
   </div>
 
   <!-- Settings: keep at the bottom so the main form is immediately available -->
@@ -1305,6 +1310,7 @@ function renderPending() {
         <td data-label="授課教師">${row['授課教師'] || ''}</td>
         <td class="pending-action-cell" data-label="操作">
           <div class="pending-actions">
+            ${isDay ? `<button class="btn-partial" data-id="${rowId}">部分可代</button>` : ''}
             <button class="btn-confirm" data-id="${rowId}">確認代課</button>
             <button class="btn-pend-del" data-id="${rowId}">刪除</button>
           </div>
@@ -1329,12 +1335,70 @@ function renderPending() {
     });
   });
 
+  // 日代只能代部分節次：轉為節代後留在詢問中
+  container.querySelectorAll('.btn-partial').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const raw = window.prompt('請輸入這位老師可代的節次\n例如：1,2,3,4 或 1-4');
+      if (raw === null) return;
+      await convertDayToPartial(this.dataset.id, raw);
+    });
+  });
+
   // 刪除單筆
   container.querySelectorAll('.btn-pend-del').forEach(btn => {
     btn.addEventListener('click', async function() {
       await deleteRow(this.dataset.id);
     });
   });
+}
+
+async function convertDayToPartial(id, rawPeriod) {
+  const raw = String(rawPeriod || '').trim();
+  const expanded = [];
+  const range = raw.match(/^(\d)\s*[-~～]\s*(\d)$/);
+  if (range) {
+    const start = Number(range[1]);
+    const end = Number(range[2]);
+    const step = start <= end ? 1 : -1;
+    for (let n = start; n !== end + step; n += step) expanded.push(n);
+  } else {
+    const compact = /^\d{2,7}$/.test(raw) ? raw.split('') : raw.split(/[,，、\s]+/).filter(Boolean);
+    compact.forEach(function(value) { expanded.push(Number(value)); });
+  }
+
+  const periods = Array.from(new Set(expanded));
+  if (!periods.length || periods.some(function(n) { return !Number.isInteger(n) || n < 1 || n > 7; })) {
+    showToast('節次格式不正確，請輸入 1–7 節，例如 1,2,3,4', true);
+    return;
+  }
+
+  const periodText = '第' + periods.join('、') + '節';
+  try {
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'update',
+        id: id,
+        changes: {
+          '代課類型': '節代',
+          '節次或日代': periodText,
+          '代課節數': periods.length,
+          '代課日數': 0,
+          '導師日數': 0,
+          '更新時間': nowStr()
+        }
+      }),
+      redirect: 'follow'
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || '更新失敗');
+    updateStatusDot('ok');
+    showToast('已改為部分節代，請確認後再按「確認代課」');
+    await fetchAndRender();
+  } catch(err) {
+    updateStatusDot('err');
+    showToast('更新失敗：' + err.message, true);
+  }
 }
 
 async function confirmPendingItem(id, editedPeriod) {
