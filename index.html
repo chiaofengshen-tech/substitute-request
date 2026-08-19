@@ -399,6 +399,61 @@
     background: #fdeaea; color: #a14444;
     border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
   }
+  @media (max-width: 640px) {
+    #pendingCard { padding: 16px 12px; overflow: hidden; }
+    #pendingCard .list-header { margin-bottom: 10px; }
+    .pending-table,
+    .pending-table tbody { display: block; width: 100%; min-width: 0; }
+    .pending-table thead { display: none; }
+    .pending-table tr.pending-group-row {
+      display: block;
+      margin-top: 12px;
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
+    }
+    .pending-table tr.pending-group-row:first-child { margin-top: 0; }
+    .pending-table tr.pending-group-row td {
+      display: block;
+      width: 100%;
+      white-space: normal;
+      border-bottom: 0;
+      padding: 8px 10px !important;
+    }
+    .pending-table tr.pending-item-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 12px;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid var(--border);
+      border-top: 0;
+      border-radius: 0 0 8px 8px;
+      background: #fff;
+    }
+    .pending-table tr.pending-item-row td {
+      display: block;
+      min-width: 0;
+      padding: 0;
+      border: 0;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+    .pending-table tr.pending-item-row td::before {
+      content: attr(data-label);
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-weight: 500;
+    }
+    .pending-table tr.pending-item-row td.pending-action-cell {
+      grid-column: 1 / -1;
+      padding-top: 4px;
+    }
+    .pending-table .editable-period { min-width: 0; }
+    .pending-actions { width: 100%; }
+    .pending-actions button { flex: 1; padding: 8px; }
+  }
   .count-label {
     font-size: 0.78rem;
     color: var(--muted);
@@ -554,20 +609,7 @@
   <h1>📚 代課詢問 ＆ 追蹤管理</h1>
   <p class="subtitle">產生 LINE 詢問訊息，並同步記錄到 Google Sheets</p>
 
-  <div class="notice">⚠️ 代課資料儲存在 Google Sheets，請確認 Web App 連線正常。</div>
-
-  <!-- Settings -->
-  <details class="card settings-card" id="settingsCard">
-    <summary>⚙️ Google Sheets 連線設定</summary>
-    <div class="settings-body">
-      <label class="field-label">Web App URL（部署後取得）</label>
-      <div class="url-row">
-        <input id="gasUrl" type="url" placeholder="https://script.google.com/macros/s/...">
-        <button id="saveUrlBtn" class="btn-primary" style="flex:0 0 auto;width:auto;padding:10px 16px;font-size:0.9rem;">儲存</button>
-      </div>
-      <div class="status-line" id="statusLine"><span class="status-dot" id="statusDot"></span><span id="statusText">尚未設定 Web App URL</span></div>
-    </div>
-  </details>
+  <div class="notice" id="connectionNotice">⚠️ 尚未確認 Google Sheets 連線，請檢查 Web App 設定。</div>
 
   <!-- Form -->
   <div class="card">
@@ -637,6 +679,19 @@
     <div id="trackingList"><p class="empty-state">請先設定 Web App URL，再按重新整理。</p></div>
     <div class="count-label" id="countLabel"></div>
   </div>
+
+  <!-- Settings: keep at the bottom so the main form is immediately available -->
+  <details class="card settings-card" id="settingsCard">
+    <summary>⚙️ Google Sheets 連線設定</summary>
+    <div class="settings-body">
+      <label class="field-label">Web App URL（部署後取得）</label>
+      <div class="url-row">
+        <input id="gasUrl" type="url" placeholder="https://script.google.com/macros/s/...">
+        <button id="saveUrlBtn" class="btn-primary" style="flex:0 0 auto;width:auto;padding:10px 16px;font-size:0.9rem;">儲存</button>
+      </div>
+      <div class="status-line" id="statusLine"><span class="status-dot" id="statusDot"></span><span id="statusText">尚未設定 Web App URL</span></div>
+    </div>
+  </details>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -716,11 +771,26 @@ function saveSettings() {
 function updateStatusDot(state) {
   const dot = document.getElementById('statusDot');
   const text = document.getElementById('statusText');
+  const notice = document.getElementById('connectionNotice');
   dot.className = 'status-dot';
-  if (state === 'ok') { dot.classList.add('ok'); text.textContent = '連線正常'; }
-  else if (state === 'err') { dot.classList.add('err'); text.textContent = '連線失敗，請確認 URL 或部署設定'; }
-  else if (state === 'idle') { text.textContent = 'URL 已設定，尚未測試'; }
-  else { text.textContent = '尚未設定 Web App URL'; }
+  if (state === 'ok') {
+    dot.classList.add('ok');
+    text.textContent = '連線正常';
+    notice.style.display = 'none';
+  } else if (state === 'err') {
+    dot.classList.add('err');
+    text.textContent = '連線失敗，請確認 URL 或部署設定';
+    notice.textContent = '⚠️ Google Sheets 連線失敗，請檢查 Web App 設定。';
+    notice.style.display = '';
+  } else if (state === 'idle') {
+    text.textContent = 'URL 已設定，尚未測試';
+    notice.textContent = '⚠️ 正在確認 Google Sheets 連線…';
+    notice.style.display = '';
+  } else {
+    text.textContent = '尚未設定 Web App URL';
+    notice.textContent = '⚠️ 尚未設定 Google Sheets Web App URL。';
+    notice.style.display = '';
+  }
 }
 
 /* ── type management ── */
@@ -1212,7 +1282,7 @@ function renderPending() {
     const groupRows = groups[key];
     const first = groupRows[0];
     const teacherName = String(first['代課教師'] || '').replace(/老師$/, '');
-    const groupHeader = `<tr style="background:#fffbf0;">
+    const groupHeader = `<tr class="pending-group-row" style="background:#fffbf0;">
       <td colspan="8" style="font-size:0.8rem;color:#7a6010;padding:6px 8px;font-weight:600;">
         📨 ${teacherName}老師・${first['結算月份'] || ''}
       </td>
@@ -1222,14 +1292,18 @@ function renderPending() {
       const rowId = String(row['id'] || '');
       const isDay = String(row['代課類型'] || '') === '日代';
       const periodCell = isDay ? '日代' : `<span class="editable-period" contenteditable="true" data-id="${rowId}">${row['節次或日代'] || ''}</span>`;
-      return `<tr>
-        <td>${row['日期'] || ''}</td>
-        <td>${row['星期'] || ''}</td>
-        <td>${periodCell}</td>
-        <td>${row['班級'] || ''}</td>
-        <td>${row['科目'] || ''}</td>
-        <td>${row['授課教師'] || ''}</td>
-        <td>
+      const displayDate = String(row['日期'] || '')
+        .replace(/^\d{4}[\/-](\d{1,2})[\/-](\d{1,2})(?:\s+00:00(?::00)?)?$/, function(_, m, d) {
+          return Number(m) + '/' + Number(d);
+        });
+      return `<tr class="pending-item-row">
+        <td data-label="日期">${displayDate}</td>
+        <td data-label="星期">${row['星期'] || ''}</td>
+        <td data-label="節次（可編輯）">${periodCell}</td>
+        <td data-label="班級">${row['班級'] || ''}</td>
+        <td data-label="科目">${row['科目'] || ''}</td>
+        <td data-label="授課教師">${row['授課教師'] || ''}</td>
+        <td class="pending-action-cell" data-label="操作">
           <div class="pending-actions">
             <button class="btn-confirm" data-id="${rowId}">確認代課</button>
             <button class="btn-pend-del" data-id="${rowId}">刪除</button>
