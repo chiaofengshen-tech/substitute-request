@@ -8,17 +8,17 @@
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%237fb3d5'/%3E%3Ctext x='50' y='62' font-size='48' text-anchor='middle' fill='white' font-family='sans-serif'%3E代%3C/text%3E%3C/svg%3E">
 <style>
   :root {
-    --bg: #f7f5f0;
-    --card: #ffffff;
-    --blue: #7fb3d5;
-    --blue-dark: #5c95bb;
-    --text: #3a3a3a;
-    --border: #e0ddd4;
-    --muted: #888;
-    --success: #4caf82;
-    --error: #e05c5c;
-    --warn-bg: #fff8e6;
-    --warn-border: #f0c96e;
+    --bg: #f5f0e8;
+    --card: #fffdf9;
+    --blue: #c5a47e;
+    --blue-dark: #8b6d4d;
+    --text: #4a4036;
+    --border: #ded1c1;
+    --muted: #948576;
+    --success: #819b78;
+    --error: #c7766f;
+    --warn-bg: #fbf3df;
+    --warn-border: #d9bd82;
   }
   * { box-sizing: border-box; }
   body {
@@ -90,6 +90,9 @@
     outline: none;
     border-color: var(--blue);
     background: #fff;
+  }
+  input[type="radio"], input[type="checkbox"] {
+    accent-color: var(--blue-dark);
   }
   select { appearance: auto; }
   .row2 {
@@ -180,7 +183,7 @@
   .btn-add {
     margin-top: 10px;
     width: 100%;
-    background: #eaf3f8;
+    background: #f1e7da;
     color: var(--blue-dark);
     border: 1px dashed var(--blue);
     padding: 10px;
@@ -310,7 +313,7 @@
     flex: 0 0 auto;
     padding: 7px 12px;
     font-size: 0.85rem;
-    background: #eaf3f8;
+    background: #f1e7da;
     color: var(--blue-dark);
     border: 1px solid var(--blue);
   }
@@ -318,11 +321,11 @@
   table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     min-width: 700px;
   }
   th {
-    background: #eaf3f8;
+    background: #f1e7da;
     color: var(--blue-dark);
     font-weight: 600;
     padding: 6px 8px;
@@ -336,15 +339,15 @@
     vertical-align: top;
     white-space: nowrap;
   }
-  tr:hover td { background: #f0f8ff; }
+  tr:hover td { background: #faf5ee; }
   .status-badge {
     display: inline-block;
     padding: 2px 8px;
     border-radius: 12px;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 600;
   }
-  .badge-asked { background: #e8f4fd; color: #5c95bb; }
+  .badge-asked { background: #f2e6d8; color: var(--blue-dark); }
   .badge-done { background: #e8f9f0; color: #4caf82; }
   .badge-cancel { background: #fdeaea; color: #e05c5c; }
   .empty-state {
@@ -370,19 +373,19 @@
     min-width: 0;
     table-layout: fixed;
     border-collapse: collapse;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
   }
   .pending-table th {
     background: #fff8e6;
     color: #7a6010;
     font-weight: 600;
-    padding: 6px 8px;
+    padding: 8px;
     text-align: left;
     border-bottom: 2px solid #f0c96e;
     white-space: nowrap;
   }
   .pending-table td {
-    padding: 7px 8px;
+    padding: 9px 8px;
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
     white-space: normal;
@@ -440,7 +443,8 @@
       width: 100%;
       white-space: normal;
       border-bottom: 0;
-      padding: 8px 10px !important;
+      padding: 10px !important;
+      font-size: 0.9rem !important;
     }
     .pending-table tr.pending-item-row {
       display: grid;
@@ -466,7 +470,7 @@
       display: block;
       margin-bottom: 2px;
       color: var(--muted);
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       font-weight: 500;
     }
     .pending-table tr.pending-item-row td.pending-action-cell {
@@ -491,9 +495,9 @@
     padding: 8px;
     font-size: 0.85rem;
     font-weight: 600;
-    background: #f0f4ff;
-    color: #4a6fa5;
-    border: 1px dashed #8aaad8;
+    background: #f4eadf;
+    color: var(--blue-dark);
+    border: 1px dashed var(--blue);
     border-radius: 8px;
     cursor: pointer;
   }
@@ -586,7 +590,7 @@
     padding: 10px 12px;
     border: 1px solid var(--border);
     border-radius: 8px;
-    background: #f5f9fd;
+    background: #f8f2ea;
   }
   .sub-teacher-block .field-label { margin-top: 0; }
   .teacher-mode-row {
