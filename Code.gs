@@ -15,7 +15,8 @@ var HEADERS = [
   '代課節數', '代課日數', '導師日數', '備註', '假別', '摘要',
   '建立時間', '更新時間'
 ];
-var TEACHER_HEADERS = ['代課教師', '顯示名稱', '薪俸', '學歷', '教師證', '備註', '資料狀態'];
+var TEACHER_HEADERS = ['代課教師', '顯示名稱', '薪俸', '學歷', '教師證', '備註', '資料狀態', '特殊可代科目'];
+var SPECIAL_SUBJECTS = ['英語', '舞蹈', '電腦', '體育'];
 
 function headerIndex(name) {
   return HEADERS.indexOf(name) + 1;
@@ -102,6 +103,82 @@ function importTeachers() {
   SpreadsheetApp.getUi().alert('已匯入 ' + teachers.length + ' 筆代課教師資料！');
 }
 
+// 將 115 學年度一至六年級導師補入「代課教師」母名單。
+// 可重複執行：已存在的姓名不會重複新增，也不會覆蓋既有資料。
+function addHomeroomTeachers() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(TEACHER_SHEET_NAME);
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert('找不到「' + TEACHER_SHEET_NAME + '」工作表。');
+    return;
+  }
+
+  var homeroomTeachers = [
+    // 一年級（5 班）
+    '王麗君', '李孟潔', '游瑟玫', '陳香君', '周玟慧',
+    // 二年級（6 班）
+    '陳富美', '許靖宜', '陳宣伶', '吳翠屏', '吳佩儒', '陳芬婷',
+    // 三年級（6 班）
+    '江筱帆', '吳曜崴', '葉依婷', '陳貞宜', '顧介鈞', '顏秀芳',
+    // 四年級（6 班）
+    '周素萍', '林湘穎', '林美智', '洪靖雯', '林綵紋', '詹騏璟',
+    // 五年級（6 班）
+    '蔡旻均', '彭傳家', '柯明月', '王翠津', '黃暐茹', '江敏滋',
+    // 六年級（7 班）
+    '郭秀雯', '吳宜儒', '林怡如', '王書漢', '余璨同', '林嘉威', '周雷世舫'
+  ];
+
+  var data = sheet.getDataRange().getValues();
+  if (data.length === 0) {
+    SpreadsheetApp.getUi().alert('「' + TEACHER_SHEET_NAME + '」工作表沒有標題列。');
+    return;
+  }
+
+  var headers = data[0].map(String);
+  var nameIdx = headers.indexOf('代課教師');
+  var displayIdx = headers.indexOf('顯示名稱');
+  var noteIdx = headers.indexOf('備註');
+  var statusIdx = headers.indexOf('資料狀態');
+  if (nameIdx < 0) {
+    SpreadsheetApp.getUi().alert('「' + TEACHER_SHEET_NAME + '」工作表缺少「代課教師」欄位。');
+    return;
+  }
+
+  function normalizeName(value) {
+    return String(value || '').replace(/老師$/, '').trim();
+  }
+
+  var existing = {};
+  for (var r = 1; r < data.length; r++) {
+    var existingName = normalizeName(data[r][nameIdx]);
+    if (existingName) existing[existingName] = true;
+  }
+
+  var rowsToAdd = [];
+  for (var i = 0; i < homeroomTeachers.length; i++) {
+    var name = homeroomTeachers[i];
+    if (existing[normalizeName(name)]) continue;
+
+    var row = [];
+    for (var c = 0; c < headers.length; c++) row.push('');
+    row[nameIdx] = name;
+    if (displayIdx >= 0) row[displayIdx] = name;
+    if (noteIdx >= 0) row[noteIdx] = '115學年度導師';
+    if (statusIdx >= 0) row[statusIdx] = '正常';
+    rowsToAdd.push(row);
+    existing[normalizeName(name)] = true;
+  }
+
+  if (rowsToAdd.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, rowsToAdd.length, headers.length).setValues(rowsToAdd);
+  }
+
+  SpreadsheetApp.getUi().alert(
+    '導師名單處理完成：新增 ' + rowsToAdd.length + '位，已存在 ' +
+    (homeroomTeachers.length - rowsToAdd.length) + '位。'
+  );
+}
+
 // 建立「可代時段」工作表（執行一次，之後直接在 Sheets 維護）
 function setupAvailability() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -181,53 +258,119 @@ function doGet(e) {
 
     // 篩選可代老師
     if (action === 'availability') {
-      var weekday = (e.parameter.weekday || '').trim();   // '一','二',...
-      var period  = (e.parameter.period  || '').trim();   // '1'~'7'
-      var atype   = (e.parameter.type    || '節代').trim(); // '節代' or '日代'
-      var adate   = (e.parameter.date    || '').trim();   // 'yyyy/MM/dd'
+      var weekday  = (e.parameter.weekday  || '').trim();   // '一','二',...
+      var period   = (e.parameter.period   || '').trim();   // '1'~'7'
+      var atype    = (e.parameter.type     || '節代').trim(); // '節代' or '日代'
+      var adate    = (e.parameter.date     || '').trim();   // 'yyyy/MM/dd'
+      var asubject = (e.parameter.subject  || '').trim();   // 科目
 
       var avSheet = ss.getSheetByName(AVAIL_SHEET_NAME);
       if (!avSheet) return jsonResponse({ teachers: [], error: '請先執行 setupAvailability() 建立可代時段工作表' });
 
       var avData = avSheet.getDataRange().getValues();
-      if (avData.length <= 1) return jsonResponse({ teachers: [] });
       var avH = avData[0].map(String);
 
       var nameIdx   = avH.indexOf('代課教師');
-      var canDayIdx = avH.indexOf('可日代');
       var noteIdx   = avH.indexOf('備註');
       var wdIdx     = weekday ? avH.indexOf('星期' + weekday) : -1;
 
-      // 篩選符合條件的老師
+      // 「代課教師」是完整候選母名單；「可代時段」只記錄已知限制。
+      var teacherSheet = ss.getSheetByName(TEACHER_SHEET_NAME);
+      if (!teacherSheet) return jsonResponse({ teachers: [], error: '找不到「代課教師」工作表' });
+      var teacherData = teacherSheet.getDataRange().getValues();
+      if (teacherData.length <= 1) return jsonResponse({ teachers: [] });
+      var teacherH = teacherData[0].map(String);
+      var teacherNameIdx = teacherH.indexOf('代課教師');
+      var teacherSpecialIdx = teacherH.indexOf('特殊可代科目');
+      if (teacherNameIdx < 0) return jsonResponse({ teachers: [], error: '「代課教師」工作表缺少「代課教師」欄位' });
+
+      function normalizeTeacherName(name) {
+        return String(name || '').replace(/老師$/, '').trim();
+      }
+
+      var availabilityByName = {};
+      for (var ai = 1; ai < avData.length; ai++) {
+        var avName = nameIdx >= 0 ? String(avData[ai][nameIdx] || '').trim() : '';
+        if (!avName) continue;
+        availabilityByName[normalizeTeacherName(avName)] = avData[ai];
+      }
+
+      // x/× 是明確不可；空白或未建資料代表尚未回覆，仍可先詢問。
       var candidates = [];
-      for (var ci = 1; ci < avData.length; ci++) {
-        var crow = avData[ci];
-        var cname    = String(crow[nameIdx]   || '').trim();
-        var canDay   = String(crow[canDayIdx] || '').trim();
-        var cnote    = noteIdx >= 0 ? String(crow[noteIdx] || '').trim() : '';
-        var wdPeriods = (wdIdx >= 0) ? String(crow[wdIdx] || '').trim() : '';
-
+      var candidateNamesSeen = {};
+      for (var ci = 1; ci < teacherData.length; ci++) {
+        var cname = String(teacherData[ci][teacherNameIdx] || '').trim();
         if (!cname) continue;
+        var normalizedName = normalizeTeacherName(cname);
+        if (!normalizedName || candidateNamesSeen[normalizedName]) continue;
+        candidateNamesSeen[normalizedName] = true;
 
-        // 所有星期欄是否全空（資料待確認）
-        var allEmpty = true;
-        for (var wi = 0; wi < WEEKDAY_NAMES.length; wi++) {
-          var wIdx2 = avH.indexOf(WEEKDAY_NAMES[wi]);
-          if (wIdx2 >= 0 && String(crow[wIdx2] || '').trim() !== '') { allEmpty = false; break; }
-        }
-        if (allEmpty && canDay !== '是') continue; // 完全沒資料，略過
+        var crow = availabilityByName[normalizedName] || null;
+        var cnote = crow && noteIdx >= 0 ? String(crow[noteIdx] || '').trim() : '';
+        var wdPeriods = crow && wdIdx >= 0 ? String(crow[wdIdx] || '').trim() : '';
+        var isExplicitUnavailable = /^(x|×|✕|不可|不能)$/i.test(wdPeriods);
+        if (isExplicitUnavailable) continue;
 
         var eligible = false;
-        if (atype === '日代') {
-          eligible = (canDay === '是') && (wdPeriods !== '');
+        var availabilityKnown = wdPeriods !== '';
+        var availablePeriods = wdPeriods.match(/[1-7]/g) || [];
+        if (!availabilityKnown) {
+          eligible = true;
+          var unknownNote = '該日可代時段尚未回覆，請先詢問';
+          cnote = cnote ? cnote + '；' + unknownNote : unknownNote;
+        } else if (atype === '日代') {
+          // 已回覆數字節次者，日代必須完整包含 1~7 節。
+          eligible = ['1','2','3','4','5','6','7'].every(function(p) {
+            return availablePeriods.indexOf(p) >= 0;
+          });
         } else {
-          if (wdPeriods && period) {
-            var avPeriods = wdPeriods.split(',').map(function(p) { return p.trim(); });
-            eligible = avPeriods.indexOf(period) >= 0;
-          }
+          eligible = period !== '' && availablePeriods.indexOf(period) >= 0;
         }
 
-        if (eligible) candidates.push({ name: cname, note: cnote });
+        if (eligible) candidates.push({
+          name: cname,
+          note: cnote,
+          availabilityKnown: availabilityKnown
+        });
+      }
+
+      // 先顯示已明確回覆可代的老師，再顯示時段尚未確認者。
+      candidates.sort(function(a, b) {
+        return (a.availabilityKnown === b.availabilityKnown) ? 0 : (a.availabilityKnown ? -1 : 1);
+      });
+
+      // 特殊科目篩選：支援關鍵字比對（英語彈性→英語、雙語電腦→電腦）
+      var specialKeywords = [
+        { subject: '英語', aliases: ['英語', '英文'] },
+        { subject: '舞蹈', aliases: ['舞蹈'] },
+        { subject: '電腦', aliases: ['電腦', '資訊'] },
+        { subject: '體育', aliases: ['體育'] }
+      ];
+      var detectedSpecial = '';
+      for (var ki = 0; ki < specialKeywords.length; ki++) {
+        var keywordGroup = specialKeywords[ki];
+        var matchedAlias = keywordGroup.aliases.some(function(alias) {
+          return asubject.indexOf(alias) >= 0;
+        });
+        if (matchedAlias) { detectedSpecial = keywordGroup.subject; break; }
+      }
+      var isSpecial = detectedSpecial !== '';
+      if (isSpecial) {
+        var eligibleSpecial = {};
+        if (teacherSpecialIdx >= 0) {
+            for (var si = 1; si < teacherData.length; si++) {
+              var sName    = String(teacherData[si][teacherNameIdx] || '').trim();
+              var sSubject = String(teacherData[si][teacherSpecialIdx] || '').trim();
+              var subjectMatches = false;
+              if (detectedSpecial === '英語' && (sSubject === '英語' || sSubject === '英文')) subjectMatches = true;
+              else if (detectedSpecial === '電腦' && (sSubject === '電腦' || sSubject === '資訊')) subjectMatches = true;
+              else if (sSubject === detectedSpecial) subjectMatches = true;
+              if (subjectMatches) eligibleSpecial[normalizeTeacherName(sName)] = true;
+          }
+        }
+        candidates = candidates.filter(function(c) {
+          return eligibleSpecial[normalizeTeacherName(c.name)];
+        });
       }
 
       // 比對代課追蹤，找衝突
@@ -371,6 +514,30 @@ function doPost(e) {
       }
 
       return jsonResponse({ ok: true, archived: rowsToArchive.length, month: archiveMonth });
+    }
+
+    // 更新單筆資料（例如：已詢問 → 已確認）
+    if (payload.action === 'update') {
+      var updateId = payload.id;
+      var changes = payload.changes || {};
+      if (!updateId) return jsonResponse({ ok: false, error: '未指定要更新的 id' });
+
+      var updateData = sheet.getDataRange().getValues();
+      var updateIdCol = HEADERS.indexOf('id');
+      for (var ur = 1; ur < updateData.length; ur++) {
+        if (String(updateData[ur][updateIdCol]) !== String(updateId)) continue;
+
+        for (var uc = 0; uc < HEADERS.length; uc++) {
+          var updateKey = HEADERS[uc];
+          if (updateKey === 'id' || changes[updateKey] === undefined) continue;
+          sheet.getRange(ur + 1, uc + 1).setValue(changes[updateKey]);
+        }
+        if (changes['更新時間'] === undefined) {
+          sheet.getRange(ur + 1, HEADERS.indexOf('更新時間') + 1).setValue(new Date());
+        }
+        return jsonResponse({ ok: true, updated: updateId });
+      }
+      return jsonResponse({ ok: false, error: '找不到該筆資料' });
     }
 
     // 刪除資料
