@@ -368,6 +368,20 @@
     cursor: pointer;
   }
   .del-btn:hover { background: #f3c0c0; }
+  .cancel-refind-btn {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 3px 7px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #fff3e0;
+    color: #b35c00;
+    border: 1px solid #f0c080;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .cancel-refind-btn:hover { background: #ffe0b2; }
   .pending-table {
     width: 100%;
     min-width: 0;
@@ -1201,13 +1215,12 @@ function buildLineMessage() {
 
   const blocks = teacherOrder.map(function(teacher) {
     const groupItems = groups[teacher];
-    const teacherLabel = teacher ? teacher + '老師' : '';
     const lines = groupItems.map(function(it, i) {
       const prefix = groupItems.length > 1 ? (i + 1) + '. ' : '';
       const indent = groupItems.length > 1 ? '　' : '';
       return formatItemFields(it).map(function(line, idx) { return (idx === 0 ? prefix : indent) + line; }).join('\n');
     }).join('\n\n');
-    return teacherLabel + '您好，\n想請問您以下時間是否方便幫忙代課？\n\n' + lines + '\n\n如果有方便的時間，再麻煩您回覆我，謝謝老師。';
+    return '老師您好，\n想請問您以下時間是否方便幫忙代課？\n\n' + lines + '\n\n如果有方便的時間，再麻煩您回覆我，謝謝老師。';
   });
 
   return blocks.join('\n\n────────────\n\n');
@@ -1544,6 +1557,97 @@ async function deleteRow(id) {
   }
 }
 
+/* ── cancel and re-find teacher ── */
+async function cancelAndRefind(row) {
+  if (!confirm('確定原代課老師臨時無法，並重新找老師嗎？')) return;
+  if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
+
+  // 1. 將原紀錄改為「已取消」
+  try {
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'update', id: row['id'], changes: { 狀態: '已取消', 更新時間: nowStr() } }),
+      redirect: 'follow'
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || '更新失敗');
+  } catch(err) {
+    showToast('更新失敗：' + err.message, true);
+    return;
+  }
+
+  // 2. 帶回表單
+  const isDay = String(row['代課類型'] || '') === '日代';
+
+  // 解析節次：去掉「第」和「節」等中文格式回原始格式
+  let periodRaw = '';
+  if (!isDay) {
+    const periodStr = String(row['節次或日代'] || '');
+    periodRaw = periodStr.replace(/第/g, '').replace(/節/g, '').replace(/、/g, ',').trim();
+  }
+
+  // 日期：從 yyyy/MM/dd 或 M/D 取出 M/D 格式
+  const dateStr = String(row['日期'] || '');
+  const dateMatch = dateStr.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?$/);
+  const dateVal = dateMatch
+    ? String(parseInt(dateMatch[2])) + '/' + String(parseInt(dateMatch[3]))
+    : dateStr;
+
+  // 授課教師去掉「老師」後綴
+  const teacherVal = String(row['授課教師'] || '').replace(/老師$/, '');
+
+  clearAll(); // 清空表單（addItem 已在 clearAll 內呼叫）
+
+  const block = document.querySelector('#itemList .item-block');
+  if (!block) return;
+
+  // 設定節代/日代
+  const typeRadios = block.querySelectorAll('.type-row input[type="radio"]');
+  typeRadios.forEach(r => { r.checked = r.value === (isDay ? 'day' : 'period'); });
+  updateTypeVisibility(block);
+
+  // 填入欄位
+  block.querySelector('.f-date').value = dateVal;
+  const guess = guessWeekday(dateVal);
+  const weekdayInput = block.querySelector('.f-weekday');
+  const weekdayDisplay = block.querySelector('.f-weekday-display');
+  weekdayInput.value = guess || '';
+  weekdayDisplay.textContent = guess ? `（${guess}）` : '';
+
+  if (!isDay) block.querySelector('.f-period').value = periodRaw;
+  block.querySelector('.f-class').value = String(row['班級'] || '');
+  block.querySelector('.f-subject').value = String(row['科目'] || '');
+  block.querySelector('.f-teacher').value = teacherVal;
+
+  const periodCountEl = block.querySelector('.f-period-count');
+  if (periodCountEl) periodCountEl.value = String(row['代課節數'] || '');
+  if (isDay) {
+    const dc = block.querySelector('.f-day-count');
+    const mc = block.querySelector('.f-mentor-count');
+    if (dc) dc.value = String(row['代課日數'] || '1');
+    if (mc) mc.value = String(row['導師日數'] || '0');
+  }
+
+  // 月底補填欄位
+  const leaveEl = block.querySelector('.f-leave');
+  if (leaveEl) leaveEl.value = String(row['假別'] || '');
+  block.querySelector('.f-summary').value = String(row['摘要'] || '');
+  block.querySelector('.f-note').value = String(row['備註'] || '');
+
+  // 切換到「幫我篩選」模式，清空代課老師
+  block.querySelector('.f-sub-teacher').value = '';
+  const filterRadio = block.querySelector('input[type="radio"][value="filter"]');
+  if (filterRadio) { filterRadio.checked = true; updateTeacherMode(block); }
+
+  updateSettleMonthFromItems();
+
+  // 捲動到表單頂部
+  document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+  showToast('已取消原代課，請重新篩選老師');
+
+  fetchAndRender();
+}
+
 /* ── tracking list ── */
 let allRows = [];
 
@@ -1629,18 +1733,22 @@ function renderList() {
   }
 
   function badgeClass(s) {
-    return s === '已完成' ? 'badge-done' : s === '已取消' ? 'badge-cancel' : 'badge-asked';
+    return (s === '已完成' || s === '已確認') ? 'badge-done' : s === '已取消' ? 'badge-cancel' : 'badge-asked';
   }
 
-  const ths = ['刪除'].concat(LIST_COLS).map(c => `<th>${c}</th>`).join('');
+  const ths = ['操作'].concat(LIST_COLS).map(c => `<th>${c}</th>`).join('');
   const trs = rows.map(row => {
     const rowId = row['id'] || '';
+    const status = row['狀態'] ? String(row['狀態']) : '';
     const tds = LIST_COLS.map(c => {
       const v = row[c] != null ? String(row[c]) : '';
       if (c === '狀態') return `<td><span class="status-badge ${badgeClass(v)}">${v}</span></td>`;
       return `<td>${v}</td>`;
     }).join('');
-    return `<tr><td><button class="del-btn" data-id="${rowId}" title="刪除這筆">🗑</button></td>${tds}</tr>`;
+    const cancelBtn = status === '已確認'
+      ? `<button class="cancel-refind-btn" data-id="${rowId}" title="取消並重新找老師">↩ 重找</button>`
+      : '';
+    return `<tr><td style="white-space:nowrap;"><button class="del-btn" data-id="${rowId}" title="刪除這筆">🗑</button>${cancelBtn}</td>${tds}</tr>`;
   }).join('');
 
   container.innerHTML = `<div class="table-wrap"><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
@@ -1649,6 +1757,14 @@ function renderList() {
     btn.addEventListener('click', function() {
       const id = this.dataset.id;
       if (confirm('確定刪除這筆代課記錄？')) deleteRow(id);
+    });
+  });
+
+  container.querySelectorAll('.cancel-refind-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.dataset.id;
+      const row = allRows.find(r => String(r['id'] || '') === id);
+      if (row) cancelAndRefind(row);
     });
   });
 }
@@ -1874,7 +1990,7 @@ async function generateReport(type) {
   const rows = await fetchAllRows();
   if (!rows) return;
 
-  const filtered = rows.filter(r => r['結算月份'] === month && r['代課類型'] === type);
+  const filtered = rows.filter(r => r['結算月份'] === month && r['代課類型'] === type && r['狀態'] !== '已取消');
   if (filtered.length === 0) { showToast('找不到 ' + month + ' 的' + type + '資料', true); return; }
 
   // 依代課教師分組
