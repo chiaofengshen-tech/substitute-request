@@ -448,6 +448,11 @@
     background: #fff3cd; color: #856404;
     border: 1px solid #f0c96e; border-radius: 6px; cursor: pointer; font-weight: 600;
   }
+  .btn-refind-pending {
+    flex: none; padding: 5px 7px; font-size: 0.75rem;
+    background: #f3eadf; color: #76593e;
+    border: 1px solid #cdb293; border-radius: 6px; cursor: pointer; font-weight: 600;
+  }
   .btn-pend-del {
     flex: none; padding: 5px 7px; font-size: 0.75rem;
     background: #fdeaea; color: #a14444;
@@ -1383,6 +1388,7 @@ function renderPending() {
           <div class="pending-actions">
             ${isDay ? `<button class="btn-partial" data-id="${rowId}">部分可代</button>` : ''}
             <button class="btn-confirm" data-id="${rowId}">確認代課</button>
+            <button class="btn-refind-pending" data-id="${rowId}">換問老師</button>
             <button class="btn-pend-del" data-id="${rowId}">刪除</button>
           </div>
         </td>
@@ -1412,6 +1418,21 @@ function renderPending() {
       const raw = window.prompt('請輸入這位老師可代的節次\n例如：1,2,3,4 或 1-4');
       if (raw === null) return;
       await convertDayToPartial(this.dataset.id, raw);
+    });
+  });
+
+  // 老師無法代課：保留原詢問紀錄，並把相同內容帶回表單改問別人
+  container.querySelectorAll('.btn-refind-pending').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const id = this.dataset.id;
+      const row = allRows.find(r => String(r['id'] || '') === id);
+      if (row) {
+        await cancelAndRefind(row, {
+          status: '無法代課',
+          confirmText: '確定這位老師無法代課，並改問其他老師嗎？',
+          toastText: '已保留原詢問紀錄，請重新篩選老師'
+        });
+      }
     });
   });
 
@@ -1725,15 +1746,19 @@ function cancelConfirmedEdit() {
 }
 
 /* ── cancel and re-find teacher ── */
-async function cancelAndRefind(row) {
-  if (!confirm('確定原代課老師臨時無法，並重新找老師嗎？')) return;
+async function cancelAndRefind(row, options) {
+  options = options || {};
+  const newStatus = options.status || '已取消';
+  const confirmText = options.confirmText || '確定原代課老師臨時無法，並重新找老師嗎？';
+  const toastText = options.toastText || '已取消原代課，請重新篩選老師';
+  if (!confirm(confirmText)) return;
   if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
 
-  // 1. 將原紀錄改為「已取消」
+  // 1. 保留原紀錄並更新其狀態
   try {
     const res = await fetch(gasUrl, {
       method: 'POST',
-      body: JSON.stringify({ action: 'update', id: row['id'], changes: { 狀態: '已取消', 更新時間: nowStr() } }),
+      body: JSON.stringify({ action: 'update', id: row['id'], changes: { 狀態: newStatus, 更新時間: nowStr() } }),
       redirect: 'follow'
     });
     const json = await res.json();
@@ -1810,7 +1835,7 @@ async function cancelAndRefind(row) {
 
   // 捲動到表單頂部
   document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
-  showToast('已取消原代課，請重新篩選老師');
+  showToast(toastText);
 
   fetchAndRender();
 }
@@ -1908,7 +1933,7 @@ function renderList() {
   }
 
   function badgeClass(s) {
-    return (s === '已完成' || s === '已確認') ? 'badge-done' : (s === '已取消' || s.indexOf('已刪除') === 0) ? 'badge-cancel' : 'badge-asked';
+    return (s === '已完成' || s === '已確認') ? 'badge-done' : (s === '已取消' || s === '無法代課' || s.indexOf('已刪除') === 0) ? 'badge-cancel' : 'badge-asked';
   }
 
   const ths = ['操作'].concat(LIST_COLS).map(c => `<th>${c}</th>`).join('');
