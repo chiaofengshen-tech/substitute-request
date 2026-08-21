@@ -713,6 +713,7 @@
       <span class="section-title">📋 代課追蹤清單</span>
       <div class="list-controls">
         <input id="filterMonth" placeholder="篩選月份…" title="輸入月份關鍵字篩選">
+        <button id="toggleDeletedBtn">查看已刪除紀錄</button>
         <button id="refreshBtn">↻ 重新整理</button>
       </div>
     </div>
@@ -1576,20 +1577,43 @@ async function directAdd() {
   }
 }
 
-/* ── delete row ── */
+/* ── move a row to deleted history ── */
 async function deleteRow(id) {
   try {
+    const originalRow = allRows.find(r => String(r['id'] || '') === String(id));
+    const originalStatus = originalRow ? String(originalRow['狀態'] || '已詢問') : '已詢問';
     const res = await fetch(gasUrl, {
       method: 'POST',
-      body: JSON.stringify({ action: 'delete', id: id }),
+      body: JSON.stringify({ action: 'update', id: id, changes: { 狀態: '已刪除｜' + originalStatus, 更新時間: nowStr() } }),
       redirect: 'follow'
     });
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || '刪除失敗');
-    showToast('已刪除');
+    showToast('已移到「已刪除紀錄」');
     fetchAndRender();
   } catch (err) {
     showToast('刪除失敗：' + err.message, true);
+  }
+}
+
+async function restoreDeletedRow(id) {
+  try {
+    const deletedRow = allRows.find(r => String(r['id'] || '') === String(id));
+    const deletedStatus = deletedRow ? String(deletedRow['狀態'] || '') : '';
+    const originalStatus = deletedStatus.indexOf('已刪除｜') === 0
+      ? deletedStatus.slice('已刪除｜'.length)
+      : '已詢問';
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'update', id: id, changes: { 狀態: originalStatus, 更新時間: nowStr() } }),
+      redirect: 'follow'
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || '復原失敗');
+    showToast('已復原資料');
+    await fetchAndRender();
+  } catch (err) {
+    showToast('復原失敗：' + err.message, true);
   }
 }
 
@@ -1793,6 +1817,7 @@ async function cancelAndRefind(row) {
 
 /* ── tracking list ── */
 let allRows = [];
+let showingDeletedRows = false;
 
 async function migrateLocalPendingToSheets(existingRows) {
   const legacy = loadPending();
@@ -1865,7 +1890,14 @@ function updateInstructorList() {
 function renderList() {
   const container = document.getElementById('trackingList');
   const filterMonth = document.getElementById('filterMonth').value.trim();
-  let rows = allRows;
+  const deletedCount = allRows.filter(r => String(r['狀態'] || '').indexOf('已刪除') === 0).length;
+  const toggleBtn = document.getElementById('toggleDeletedBtn');
+  toggleBtn.textContent = showingDeletedRows ? '返回代課追蹤清單' : `查看已刪除紀錄（${deletedCount}）`;
+
+  let rows = allRows.filter(r => {
+    const isDeleted = String(r['狀態'] || '').indexOf('已刪除') === 0;
+    return showingDeletedRows ? isDeleted : !isDeleted;
+  });
   if (filterMonth) rows = rows.filter(r => String(r['結算月份'] || '').includes(filterMonth));
 
   document.getElementById('countLabel').textContent = `共 ${rows.length} 筆${filterMonth ? `（篩選：${filterMonth}）` : ''}`;
@@ -1876,7 +1908,7 @@ function renderList() {
   }
 
   function badgeClass(s) {
-    return (s === '已完成' || s === '已確認') ? 'badge-done' : s === '已取消' ? 'badge-cancel' : 'badge-asked';
+    return (s === '已完成' || s === '已確認') ? 'badge-done' : (s === '已取消' || s.indexOf('已刪除') === 0) ? 'badge-cancel' : 'badge-asked';
   }
 
   const ths = ['操作'].concat(LIST_COLS).map(c => `<th>${c}</th>`).join('');
@@ -1894,7 +1926,10 @@ function renderList() {
     const editBtn = (status === '已確認' || status === '已完成')
       ? `<button class="edit-record-btn" data-id="${rowId}" title="修改這筆資料">✎ 編輯</button>`
       : '';
-    return `<tr><td style="white-space:nowrap;"><button class="del-btn" data-id="${rowId}" title="刪除這筆">🗑</button>${editBtn}${cancelBtn}</td>${tds}</tr>`;
+    const actionButtons = status.indexOf('已刪除') === 0
+      ? `<button class="restore-record-btn cancel-refind-btn" data-id="${rowId}" title="復原這筆資料">↩ 復原</button>`
+      : `<button class="del-btn" data-id="${rowId}" title="移到已刪除紀錄">🗑</button>${editBtn}${cancelBtn}`;
+    return `<tr><td style="white-space:nowrap;">${actionButtons}</td>${tds}</tr>`;
   }).join('');
 
   container.innerHTML = `<div class="table-wrap"><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
@@ -1902,7 +1937,7 @@ function renderList() {
   container.querySelectorAll('.del-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       const id = this.dataset.id;
-      if (confirm('確定刪除這筆代課記錄？')) deleteRow(id);
+      if (confirm('確定將這筆資料移到「已刪除紀錄」？之後仍可查看及復原。')) deleteRow(id);
     });
   });
 
@@ -1919,6 +1954,12 @@ function renderList() {
       const id = this.dataset.id;
       const row = allRows.find(r => String(r['id'] || '') === id);
       if (row) editConfirmedRow(row);
+    });
+  });
+
+  container.querySelectorAll('.restore-record-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      if (confirm('確定復原這筆資料？')) restoreDeletedRow(this.dataset.id);
     });
   });
 }
@@ -2090,6 +2131,10 @@ document.getElementById('cancelEditBtn').addEventListener('click', cancelConfirm
 document.getElementById('addItemBtn').addEventListener('click', () => addItem());
 document.getElementById('refreshBtn').addEventListener('click', fetchAndRender);
 document.getElementById('filterMonth').addEventListener('input', renderList);
+document.getElementById('toggleDeletedBtn').addEventListener('click', function() {
+  showingDeletedRows = !showingDeletedRows;
+  renderList();
+});
 document.getElementById('filterCloseBtn').addEventListener('click', closeFilterModal);
 document.getElementById('filterOverlay').addEventListener('click', function(e) {
   if (e.target === this) closeFilterModal();
