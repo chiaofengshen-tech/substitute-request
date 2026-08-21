@@ -410,7 +410,9 @@
     padding: 8px;
     text-align: left;
     border-bottom: 2px solid #f0c96e;
-    white-space: nowrap;
+    white-space: normal;
+    line-height: 1.35;
+    overflow-wrap: break-word;
   }
   .pending-table td {
     padding: 9px 8px;
@@ -1399,7 +1401,7 @@ function renderPending() {
   }).join('');
 
   container.innerHTML = `<table class="pending-table">
-    <thead><tr><th>日期</th><th>星期</th><th>節次（可編輯）</th><th>班級</th><th>科目</th><th>授課教師</th><th>操作</th></tr></thead>
+    <thead><tr><th>日期</th><th>星期</th><th>節次<br>（可編輯）</th><th>班級</th><th>科目</th><th>授課教師</th><th>操作</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 
