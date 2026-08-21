@@ -382,6 +382,20 @@
     white-space: nowrap;
   }
   .cancel-refind-btn:hover { background: #ffe0b2; }
+  .edit-record-btn {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 3px 7px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #f3eadf;
+    color: #76593e;
+    border: 1px solid #cdb293;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .edit-record-btn:hover { background: #e8d8c5; }
   .pending-table {
     width: 100%;
     min-width: 0;
@@ -670,6 +684,8 @@
       <button class="btn-primary" id="copyMsgBtn" style="flex:2;min-width:160px;">💬 複製詢問訊息</button>
       <button class="btn-success" id="directAddBtn" style="flex:2;min-width:160px;">✅ 直接新增已確認代課</button>
       <button class="btn-secondary" id="clearBtn" style="flex:1;min-width:60px;">清空</button>
+      <button class="btn-success" id="saveEditBtn" style="display:none;flex:2;min-width:160px;">💾 儲存修改</button>
+      <button class="btn-secondary" id="cancelEditBtn" style="display:none;flex:1;min-width:100px;">取消編輯</button>
     </div>
   </div>
 
@@ -836,6 +852,17 @@ function updateStatusDot(state) {
 
 /* ── type management ── */
 let itemCount = 0;
+let editingRowId = '';
+
+function setConfirmedEditMode(active) {
+  document.getElementById('copyMsgBtn').style.display = active ? 'none' : '';
+  document.getElementById('directAddBtn').style.display = active ? 'none' : '';
+  document.getElementById('clearBtn').style.display = active ? 'none' : '';
+  document.getElementById('addItemBtn').style.display = active ? 'none' : '';
+  document.getElementById('saveEditBtn').style.display = active ? '' : 'none';
+  document.getElementById('cancelEditBtn').style.display = active ? '' : 'none';
+  if (!active) editingRowId = '';
+}
 
 function updateTypeVisibility(block) {
   const checked = block.querySelector('.type-row input[type="radio"]:checked');
@@ -1164,6 +1191,7 @@ function updateSettleMonthFromItems() {
   const disabled = hasMismatch;
   document.getElementById('copyMsgBtn').disabled = disabled;
   document.getElementById('directAddBtn').disabled = disabled;
+  document.getElementById('saveEditBtn').disabled = disabled;
 }
 
 /* ── collect form data ── */
@@ -1565,6 +1593,113 @@ async function deleteRow(id) {
   }
 }
 
+/* ── edit a confirmed row without creating a duplicate ── */
+function editConfirmedRow(row) {
+  const isDay = String(row['代課類型'] || '') === '日代';
+  let periodRaw = '';
+  if (!isDay) {
+    periodRaw = String(row['節次或日代'] || '')
+      .replace(/第/g, '').replace(/節/g, '').replace(/、/g, ',').trim();
+  }
+
+  const dateStr = String(row['日期'] || '');
+  const dateMatch = dateStr.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?$/);
+  const dateVal = dateMatch
+    ? String(parseInt(dateMatch[2])) + '/' + String(parseInt(dateMatch[3]))
+    : dateStr;
+
+  clearAll();
+  const block = document.querySelector('#itemList .item-block');
+  if (!block) return;
+
+  block.querySelectorAll('.type-row input[type="radio"]').forEach(function(radio) {
+    radio.checked = radio.value === (isDay ? 'day' : 'period');
+  });
+  updateTypeVisibility(block);
+
+  block.querySelector('.f-date').value = dateVal;
+  const weekday = String(row['星期'] || '') || guessWeekday(dateVal) || '';
+  block.querySelector('.f-weekday').value = weekday;
+  block.querySelector('.f-weekday-display').textContent = weekday ? `（${weekday}）` : '';
+  if (!isDay) block.querySelector('.f-period').value = periodRaw;
+  block.querySelector('.f-class').value = String(row['班級'] || '');
+  block.querySelector('.f-subject').value = String(row['科目'] || '').replace(/、/g, ',');
+  block.querySelector('.f-teacher').value = String(row['授課教師'] || '').replace(/老師$/, '');
+  block.querySelector('.f-sub-teacher').value = String(row['代課教師'] || '').replace(/老師$/, '');
+
+  const periodCountEl = block.querySelector('.f-period-count');
+  if (periodCountEl) periodCountEl.value = String(row['代課節數'] || '');
+  if (isDay) {
+    block.querySelector('.f-day-count').value = String(row['代課日數'] || '1');
+    block.querySelector('.f-mentor-count').value = String(row['導師日數'] || '0');
+  }
+  block.querySelector('.f-leave').value = String(row['假別'] || '');
+  block.querySelector('.f-summary').value = String(row['摘要'] || '');
+  block.querySelector('.f-note').value = String(row['備註'] || '');
+
+  editingRowId = String(row['id'] || '');
+  setConfirmedEditMode(true);
+  updateSettleMonthFromItems();
+  document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+  showToast('資料已帶回表單，修改後請按「儲存修改」');
+}
+
+async function saveConfirmedEdit() {
+  if (!editingRowId) return;
+  if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
+  const item = getItems()[0];
+  if (!item) return;
+
+  const cleanTeacher = String(item.teacher || '').replace(/老師$/, '');
+  const changes = {
+    狀態: '已確認',
+    結算月份: getVal('settleMonth'),
+    代課類型: item.type === 'period' ? '節代' : '日代',
+    代課教師: item.subTeacher ? resolveTeacherName(item.subTeacher.replace(/老師$/, '')) + '老師' : '',
+    日期: formatDateText(item.date),
+    星期: item.weekday,
+    節次或日代: item.type === 'period' ? formatPeriodText(item.period) : '日代',
+    班級: item.className,
+    科目: item.type === 'period' ? formatSubjects(item.subject) : '',
+    授課教師: cleanTeacher ? cleanTeacher + '老師' : '',
+    代課節數: item.periodCount,
+    代課日數: item.dayCount,
+    導師日數: item.mentorCount,
+    備註: item.note,
+    假別: item.leaveType,
+    摘要: item.summary,
+    更新時間: nowStr()
+  };
+
+  const btn = document.getElementById('saveEditBtn');
+  btn.disabled = true;
+  btn.textContent = '儲存中…';
+  try {
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'update', id: editingRowId, changes: changes }),
+      redirect: 'follow'
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || '更新失敗');
+    setConfirmedEditMode(false);
+    clearAll();
+    await fetchAndRender();
+    showToast('已更新原本資料 ✓');
+  } catch (err) {
+    showToast('修改失敗：' + err.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 儲存修改';
+  }
+}
+
+function cancelConfirmedEdit() {
+  setConfirmedEditMode(false);
+  clearAll();
+  showToast('已取消編輯');
+}
+
 /* ── cancel and re-find teacher ── */
 async function cancelAndRefind(row) {
   if (!confirm('確定原代課老師臨時無法，並重新找老師嗎？')) return;
@@ -1756,7 +1891,10 @@ function renderList() {
     const cancelBtn = status === '已確認'
       ? `<button class="cancel-refind-btn" data-id="${rowId}" title="取消並重新找老師">↩ 重找</button>`
       : '';
-    return `<tr><td style="white-space:nowrap;"><button class="del-btn" data-id="${rowId}" title="刪除這筆">🗑</button>${cancelBtn}</td>${tds}</tr>`;
+    const editBtn = (status === '已確認' || status === '已完成')
+      ? `<button class="edit-record-btn" data-id="${rowId}" title="修改這筆資料">✎ 編輯</button>`
+      : '';
+    return `<tr><td style="white-space:nowrap;"><button class="del-btn" data-id="${rowId}" title="刪除這筆">🗑</button>${editBtn}${cancelBtn}</td>${tds}</tr>`;
   }).join('');
 
   container.innerHTML = `<div class="table-wrap"><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
@@ -1773,6 +1911,14 @@ function renderList() {
       const id = this.dataset.id;
       const row = allRows.find(r => String(r['id'] || '') === id);
       if (row) cancelAndRefind(row);
+    });
+  });
+
+  container.querySelectorAll('.edit-record-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.dataset.id;
+      const row = allRows.find(r => String(r['id'] || '') === id);
+      if (row) editConfirmedRow(row);
     });
   });
 }
@@ -1939,6 +2085,8 @@ document.getElementById('clearBtn').addEventListener('click', clearAll);
 document.getElementById('copyBtn').addEventListener('click', copyOnly);
 document.getElementById('copyMsgBtn').addEventListener('click', copyMsg);
 document.getElementById('directAddBtn').addEventListener('click', directAdd);
+document.getElementById('saveEditBtn').addEventListener('click', saveConfirmedEdit);
+document.getElementById('cancelEditBtn').addEventListener('click', cancelConfirmedEdit);
 document.getElementById('addItemBtn').addEventListener('click', () => addItem());
 document.getElementById('refreshBtn').addEventListener('click', fetchAndRender);
 document.getElementById('filterMonth').addEventListener('input', renderList);
