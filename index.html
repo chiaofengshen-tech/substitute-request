@@ -802,6 +802,14 @@ const ASSIGNMENT_TEACHERS = [
   '陳秭訢','陳富美','彭傳家','游瑟玫','黃佳如','黃姿綺','黃暐茹','黃薏蒨','楊中域','楊瑞蘭',
   '葉依婷','詹騏璟','劉信志','蔡旻均','蔡嘉俊','顏秀芳','羅敏華','蘇靖媚','顧介鈞'
 ];
+const HOMEROOM_TEACHERS = {
+  '101':'王麗君', '102':'李孟潔', '103':'游瑟玫', '104':'陳香君', '105':'周玟慧',
+  '201':'陳富美', '202':'許靖宜', '203':'陳宣伶', '204':'吳翠屏', '205':'吳佩儒', '206':'陳芬婷',
+  '301':'江筱帆', '302':'吳曜崴', '303':'葉依婷', '304':'陳貞宜', '305':'顧介鈞', '306':'顏秀芳',
+  '401':'周素萍', '402':'林湘穎', '403':'林美智', '404':'洪靖雯', '405':'林綵紋', '406':'詹騏璟',
+  '501':'蔡旻均', '502':'彭傳家', '503':'柯明月', '504':'王翠津', '505':'黃暐茹', '506':'江敏滋',
+  '601':'郭秀雯', '602':'吳宜儒', '603':'林怡如', '604':'王書漢', '605':'余璨同', '606':'林嘉威', '607':'周雷世舫'
+};
 
 /* ── settings ── */
 let gasUrl = localStorage.getItem(GAS_URL_KEY) || '';
@@ -897,8 +905,10 @@ function updateTypeVisibility(block) {
 function updateTeacherMode(block) {
   const modeRadio = block.querySelector('input[type="radio"][name^="tmode-"]:checked');
   const isFilter = modeRadio && modeRadio.value === 'filter';
-  block.querySelector('.teacher-specify-area').style.display = isFilter ? 'none' : '';
+  const isHomeroom = modeRadio && modeRadio.value === 'homeroom';
+  block.querySelector('.teacher-specify-area').style.display = (!isFilter && !isHomeroom) ? '' : 'none';
   block.querySelector('.teacher-filter-area').style.display = isFilter ? '' : 'none';
+  block.querySelector('.teacher-homeroom-area').style.display = isHomeroom ? '' : 'none';
   // Clear selected display and results when switching modes
   const display = block.querySelector('.teacher-selected-display');
   if (display) { display.style.display = 'none'; display.textContent = ''; }
@@ -906,6 +916,29 @@ function updateTeacherMode(block) {
   if (resultArea) { resultArea.style.display = 'none'; resultArea.innerHTML = ''; }
   if (isFilter) {
     block.querySelector('.f-sub-teacher').value = '';
+  }
+  if (isHomeroom) updateHomeroomTeacher(block);
+}
+
+function normalizeClassCode(raw) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (/^[1-6][1-7]$/.test(digits)) return digits[0] + '0' + digits[1];
+  return digits;
+}
+
+function updateHomeroomTeacher(block) {
+  const modeRadio = block.querySelector('input[type="radio"][name^="tmode-"]:checked');
+  if (!modeRadio || modeRadio.value !== 'homeroom') return;
+  const classCode = normalizeClassCode(block.querySelector('.f-class').value);
+  const teacher = HOMEROOM_TEACHERS[classCode] || '';
+  block.querySelector('.f-sub-teacher').value = teacher;
+  const hint = block.querySelector('.teacher-homeroom-hint');
+  if (!classCode) {
+    hint.textContent = '請先填寫班級，例如 504';
+  } else if (teacher) {
+    hint.textContent = `已自動代入：${teacher}老師`;
+  } else {
+    hint.textContent = `找不到班級 ${classCode} 的導師，請確認班級`;
   }
 }
 
@@ -944,6 +977,7 @@ function addItem() {
       <div class="teacher-mode-row">
         <label><input type="radio" name="tmode-${id}" value="specify" checked> 指定老師</label>
         <label><input type="radio" name="tmode-${id}" value="filter"> 幫我篩選</label>
+        <label><input type="radio" name="tmode-${id}" value="homeroom"> 選導師</label>
       </div>
       <div class="teacher-specify-area">
         <input type="text" class="f-sub-teacher" placeholder="輸入姓名搜尋…" autocomplete="off" list="teacherList">
@@ -951,6 +985,9 @@ function addItem() {
       <div class="teacher-filter-area" style="display:none;">
         <button type="button" class="filter-btn">🔍 篩選可代老師</button>
         <div class="filter-inline-result" style="display:none;"></div>
+      </div>
+      <div class="teacher-homeroom-area" style="display:none;padding:9px 12px;background:#f3eadf;border-radius:8px;color:#76593e;font-size:0.85rem;">
+        <span class="teacher-homeroom-hint">請先填寫班級，例如 504</span>
       </div>
       <div class="teacher-selected-display" style="display:none;"></div>
     </div>
@@ -1030,6 +1067,7 @@ function addItem() {
   const weekdayDisplay = block.querySelector('.f-weekday-display');
   const periodInput = block.querySelector('.f-period');
   const periodCountInput = block.querySelector('.f-period-count');
+  const classInput = block.querySelector('.f-class');
 
   dateInput.addEventListener('input', () => {
     const guess = guessWeekday(dateInput.value);
@@ -1042,6 +1080,8 @@ function addItem() {
     const count = estimatePeriodCount(periodInput.value);
     periodCountInput.value = count;
   });
+
+  classInput.addEventListener('input', () => updateHomeroomTeacher(block));
 
   block.querySelector('.extra-fields-toggle').addEventListener('click', function() {
     const target = document.getElementById(this.dataset.target);
