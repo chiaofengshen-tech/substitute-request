@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>代課月曆</title>
+<style>
+:root {
+  --bg: #f5f0e8;
+  --card: #fffdf9;
+  --accent: #8b6d4d;
+  --accent-light: #f0e8db;
+  --text: #4a4036;
+  --muted: #948576;
+  --border: #ded1c1;
+  --confirmed: #4caf82;
+  --confirmed-bg: #e8f9f0;
+  --confirmed-border: #a3d9b8;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+  background: var(--bg); color: var(--text); padding: 16px;
+  min-height: 100vh;
+}
+
+/* Header */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px; flex-wrap: wrap; gap: 10px;
+}
+.title-row { display: flex; align-items: center; gap: 10px; }
+.title-row h1 { font-size: 1.1rem; font-weight: 700; }
+.back-btn {
+  font-size: 0.8rem; padding: 5px 10px; border: 1px solid var(--border);
+  border-radius: 7px; background: var(--card); color: var(--accent);
+  cursor: pointer; text-decoration: none; display: inline-block;
+}
+.period-label { font-size: 0.9rem; font-weight: 600; color: var(--accent); }
+.controls { display: flex; align-items: center; gap: 6px; }
+.nav-btn {
+  width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 7px;
+  background: var(--card); color: var(--accent); font-size: 0.9rem; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.nav-btn:active { opacity: 0.7; }
+.toggle-group { display: flex; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.toggle-btn { padding: 5px 12px; font-size: 0.8rem; font-family: inherit; font-weight: 500; border: none; background: transparent; color: var(--muted); cursor: pointer; }
+.toggle-btn.active { background: var(--accent); color: #fff; }
+
+/* Today banner */
+.today-banner {
+  display: none; margin-bottom: 12px; padding: 10px 14px;
+  background: var(--confirmed-bg); border: 1px solid var(--confirmed-border);
+  border-radius: 10px; font-size: 0.85rem; color: #2e7d55; line-height: 1.6;
+}
+.today-banner strong { font-weight: 700; }
+
+/* Empty / loading */
+.state-msg { text-align: center; color: var(--muted); padding: 40px 0; font-size: 0.9rem; }
+
+/* ── Month Grid ── */
+.cal-month-hdr-row { display: grid; grid-template-columns: repeat(6,1fr); gap: 2px; min-width: 340px; }
+.cal-month { display: grid; grid-template-columns: repeat(6,1fr); grid-auto-rows: 1fr; gap: 2px; min-width: 340px; flex: 1; }
+.cal-month-hdr { text-align: center; padding: 5px 2px; font-size: 0.7rem; font-weight: 600; color: var(--muted); }
+.cal-month-hdr.sat { color: var(--accent); }
+.cal-day { background: transparent; border-radius: 5px; min-height: 0; flex: 1; padding: 4px; display: flex; flex-direction: column; gap: 2px; }
+.cal-day.this-month { background: var(--card); border: 1px solid var(--border); }
+.cal-day.is-today { border: 2px solid var(--accent); }
+.cal-day-num { font-size: 0.68rem; font-weight: 600; color: var(--muted); width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cal-day.is-today .cal-day-num { background: var(--accent); color: #fff; }
+
+/* Sub card */
+.sub-card { border-radius: 4px; padding: 2px 5px; font-size: 0.67rem; line-height: 1.35; position: relative; cursor: default; display: flex; align-items: baseline; gap: 3px; flex-wrap: wrap; }
+.sub-card.confirmed { background: var(--confirmed-bg); border-left: 3px solid var(--confirmed); }
+.sub-name { font-weight: 600; color: var(--text); white-space: nowrap; }
+.sub-arrow { color: var(--muted); font-size: 0.6rem; }
+.sub-orig { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; }
+.sub-tip { display: none; position: absolute; bottom: calc(100% + 5px); left: 0; background: var(--text); color: #fff; border-radius: 6px; padding: 4px 9px; font-size: 0.7rem; white-space: nowrap; pointer-events: none; z-index: 99; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.sub-tip::after { content: ''; position: absolute; top: 100%; left: 10px; border: 4px solid transparent; border-top-color: var(--text); }
+.sub-card:hover .sub-tip { display: block; }
+
+/* ── Week Grid ── */
+.cal-week { display: grid; grid-template-columns: 42px repeat(6,1fr); gap: 2px; min-width: 360px; }
+.wk-corner { }
+.wk-hdr { text-align: center; padding: 5px 3px; font-size: 0.7rem; font-weight: 600; color: var(--muted); background: var(--card); border: 1px solid var(--border); border-bottom: none; border-radius: 5px 5px 0 0; }
+.wk-hdr .wk-date { display: block; font-size: 0.95rem; font-weight: 600; color: var(--text); margin-top: 1px; }
+.wk-hdr.today-hdr { background: var(--accent); color: #fff; border-color: var(--accent); }
+.wk-hdr.today-hdr .wk-date { color: #fff; }
+.wk-today-tag { font-size: 0.58rem; background: rgba(255,255,255,.25); border-radius: 3px; padding: 0 3px; margin-left: 2px; }
+.period-lbl { font-size: 0.66rem; color: var(--muted); text-align: center; padding: 3px 1px; display: flex; align-items: center; justify-content: center; }
+.wk-cell { background: var(--card); border: 1px solid var(--border); padding: 3px; min-height: 38px; display: flex; flex-direction: column; gap: 2px; }
+.wk-cell.today-col { background: var(--accent-light); }
+.wk-cell.dim { background: var(--bg); border-color: transparent; }
+
+/* ── Day View ── */
+.day-view { }
+.day-view-title { font-size: 1.1rem; font-weight: 600; color: var(--accent); margin-bottom: 12px; }
+.period-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.period-row:last-child { border-bottom: none; }
+.period-badge { min-width: 46px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; text-align: center; padding: 3px 5px; font-size: 0.72rem; font-weight: 600; color: var(--muted); flex-shrink: 0; }
+.day-card { border-radius: 8px; padding: 8px 12px; font-size: 0.82rem; line-height: 1.5; background: var(--confirmed-bg); border: 1px solid var(--confirmed-border); }
+.day-card .dc-sub { font-weight: 700; }
+.day-card .dc-orig { color: var(--muted); font-size: 0.76rem; }
+.no-data { color: var(--muted); font-size: 0.82rem; padding: 6px 0; }
+
+.cal-wrap { overflow-x: auto; }
+
+/* No URL notice */
+.no-url { background: #fdf3e3; border: 1px solid #e8c97a; border-radius: 10px; padding: 16px; font-size: 0.88rem; color: #7a5a1a; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-row">
+    <a href="index.html" class="back-btn">← 返回</a>
+    <h1>📅 代課月曆</h1>
+    <span class="period-label" id="periodLabel"></span>
+  </div>
+  <div class="controls">
+    <button class="nav-btn" id="calPrev">‹</button>
+    <button class="nav-btn" id="calToday" style="font-size:0.72rem;width:auto;padding:0 8px;">今</button>
+    <button class="nav-btn" id="calNext">›</button>
+    <div class="toggle-group">
+      <button class="toggle-btn active" data-view="month">月</button>
+      <button class="toggle-btn" data-view="week">週</button>
+      <button class="toggle-btn" data-view="day">日</button>
+    </div>
+  </div>
+</div>
+
+<div class="today-banner" id="todayBanner"></div>
+<div id="noUrlMsg" class="no-url" style="display:none;">
+  尚未設定 API 網址，請先在 <a href="index.html">主頁</a> 的「Google Sheets 連線設定」儲存 Web App URL。
+</div>
+<div class="cal-wrap"><div id="calView"><p class="state-msg">載入中…</p></div></div>
+
+<script>
+const GAS_URL_KEY = 'gasWebAppUrl';
+let allRows = [];
+
+const state = (function() {
+  const now = new Date();
+  return { view: 'month', year: now.getFullYear(), month: now.getMonth(), day: now.getDate() };
+})();
+
+// ── Date parsing ──
+function parseRowDate(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  // "2026/08/31 00:00" or "2026/08/31"
+  let m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+  // "115/8/31" (ROC year)
+  m = s.match(/^(\d{2,3})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if (m) {
+    const y = parseInt(m[1]) < 200 ? parseInt(m[1]) + 1911 : parseInt(m[1]);
+    return new Date(y, parseInt(m[2]) - 1, parseInt(m[3]));
+  }
+  // "9/4"
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
+  if (m) { const now = new Date(); return new Date(now.getFullYear(), parseInt(m[1]) - 1, parseInt(m[2])); }
+  // "115年9月4日"
+  m = s.match(/(\d{2,3})年(\d{1,2})月(\d{1,2})日/);
+  if (m) {
+    const y = parseInt(m[1]) < 200 ? parseInt(m[1]) + 1911 : parseInt(m[1]);
+    return new Date(y, parseInt(m[2]) - 1, parseInt(m[3]));
+  }
+  return null;
+}
+
+function isSameDay(a, b) {
+  return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function getEvents(rows) {
+  const evts = [];
+  rows.filter(r => String(r['狀態'] || '').trim() === '已確認').forEach(r => {
+    const d = parseRowDate(r['日期'] || r['代課日期']);
+    if (!d) return;
+    evts.push({
+      date: d,
+      sub: String(r['代課教師'] || r['代課老師'] || '—').replace(/老師$/, ''),
+      orig: String(r['授課教師'] || r['授課老師'] || '').replace(/老師$/, ''),
+      period: r['節次或日代'] || ''
+    });
+  });
+  return evts;
+}
+
+function eventsForDate(d, evts) {
+  return evts.filter(e => isSameDay(e.date, d));
+}
+
+// ── Sub card HTML ──
+function subCard(e, small) {
+  const fs = small ? 'font-size:0.64rem;' : '';
+  return `<div class="sub-card confirmed" style="${fs}">
+    ${e.period ? `<span class="sub-tip">${e.period}</span>` : ''}
+    <span class="sub-name">${e.sub}</span>
+    <span class="sub-arrow">→</span>
+    <span class="sub-orig">${e.orig}</span>
+  </div>`;
+}
+
+// ── Month view ──
+function renderMonth(evts) {
+  const { year, month } = state;
+  const today = new Date();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startDow = (firstDay.getDay() + 6) % 7; // Mon=0
+
+  const HDRS = ['週一','週二','週三','週四','週五','週六'];
+  let hdrHtml = `<div class="cal-month-hdr-row">` + HDRS.map((h, i) => `<div class="cal-month-hdr${i===5?' sat':''}">${h}</div>`).join('') + `</div>`;
+  let bodyHtml = `<div class="cal-month">`;
+
+  for (let i = 0; i < Math.min(startDow, 6); i++) bodyHtml += `<div class="cal-day"></div>`;
+
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const date = new Date(year, month, d);
+    const dow = (date.getDay() + 6) % 7;
+    if (dow === 6) continue; // skip Sunday
+    const isToday = isSameDay(date, today);
+    const de = eventsForDate(date, evts);
+    bodyHtml += `<div class="cal-day this-month${isToday ? ' is-today' : ''}">
+      <span class="cal-day-num">${d}</span>
+      ${de.map(e => subCard(e, false)).join('')}
+    </div>`;
+  }
+  bodyHtml += `</div>`;
+  return `<div style="display:flex;flex-direction:column;height:calc(100vh - 130px);">${hdrHtml}${bodyHtml}</div>`;
+}
+
+// ── Week view ──
+function renderWeek(evts) {
+  const today = new Date();
+  const cur = new Date(state.year, state.month, state.day);
+  const dow = (cur.getDay() + 6) % 7;
+  const mon = new Date(cur); mon.setDate(cur.getDate() - dow);
+  const days = Array.from({length: 6}, (_, i) => { const d = new Date(mon); d.setDate(mon.getDate() + i); return d; });
+
+  const periods = new Set();
+  days.forEach(d => eventsForDate(d, evts).forEach(e => {
+    (e.period || '').split(/[,，、]/g).forEach(p => { if (p.trim()) periods.add(p.trim()); });
+  }));
+  if (periods.size === 0) periods.add('—');
+  const periodArr = Array.from(periods).sort();
+
+  const DOWS = ['週一','週二','週三','週四','週五','週六'];
+  let html = `<div class="cal-week"><div class="wk-corner"></div>`;
+  days.forEach((d, i) => {
+    const isToday = isSameDay(d, today);
+    html += `<div class="wk-hdr${isToday ? ' today-hdr' : ''}">
+      ${DOWS[i]}${isToday ? '<span class="wk-today-tag">今</span>' : ''}
+      <span class="wk-date">${d.getDate()}</span>
+    </div>`;
+  });
+
+  periodArr.forEach(p => {
+    html += `<div class="period-lbl">${p !== '—' ? p : ''}</div>`;
+    days.forEach(d => {
+      const isToday = isSameDay(d, today);
+      const de = eventsForDate(d, evts).filter(e => p === '—' || (e.period || '').includes(p));
+      html += `<div class="wk-cell${isToday ? ' today-col' : ''}">
+        ${de.map(e => subCard(e, true)).join('')}
+      </div>`;
+    });
+  });
+  html += `</div>`;
+  return html;
+}
+
+// ── Day view ──
+function renderDay(evts) {
+  const d = new Date(state.year, state.month, state.day);
+  const de = eventsForDate(d, evts);
+  const WDAY = ['日','一','二','三','四','五','六'];
+  let html = `<div class="day-view">
+    <div class="day-view-title">${state.year}年${state.month+1}月${state.day}日（週${WDAY[d.getDay()]}）</div>`;
+  if (de.length === 0) {
+    html += `<p class="no-data">當日無已確認代課</p>`;
+  } else {
+    const groups = {};
+    de.forEach(e => { const k = e.period || '（未指定）'; (groups[k] = groups[k] || []).push(e); });
+    Object.entries(groups).forEach(([p, es]) => {
+      html += `<div class="period-row"><div class="period-badge">${p}</div><div style="display:flex;flex-wrap:wrap;gap:6px;">
+        ${es.map(e => `<div class="day-card"><div class="dc-sub">${e.sub}</div><div class="dc-orig">代替 ${e.orig} 老師</div></div>`).join('')}
+      </div></div>`;
+    });
+  }
+  html += `</div>`;
+  return html;
+}
+
+// ── Period label ──
+function periodLabel() {
+  const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const WDAY = ['日','一','二','三','四','五','六'];
+  if (state.view === 'month') return `${state.year}年 ${MONTHS[state.month]}`;
+  if (state.view === 'week') {
+    const cur = new Date(state.year, state.month, state.day);
+    const dow = (cur.getDay() + 6) % 7;
+    const mon = new Date(cur); mon.setDate(cur.getDate() - dow);
+    const sat = new Date(mon); sat.setDate(mon.getDate() + 5);
+    return `${state.year}年 ${mon.getMonth()+1}/${mon.getDate()} – ${sat.getMonth()+1}/${sat.getDate()}`;
+  }
+  const d = new Date(state.year, state.month, state.day);
+  return `${state.year}年${state.month+1}月${state.day}日（週${WDAY[d.getDay()]}）`;
+}
+
+// ── Navigate ──
+function navigate(dir) {
+  if (state.view === 'month') {
+    state.month += dir;
+    if (state.month < 0) { state.month = 11; state.year--; }
+    if (state.month > 11) { state.month = 0; state.year++; }
+  } else if (state.view === 'week') {
+    const d = new Date(state.year, state.month, state.day);
+    d.setDate(d.getDate() + dir * 7);
+    state.year = d.getFullYear(); state.month = d.getMonth(); state.day = d.getDate();
+  } else {
+    const d = new Date(state.year, state.month, state.day);
+    d.setDate(d.getDate() + dir);
+    state.year = d.getFullYear(); state.month = d.getMonth(); state.day = d.getDate();
+  }
+  render();
+}
+
+// ── Render ──
+function render() {
+  const evts = getEvents(allRows);
+  const today = new Date();
+
+  // Today banner
+  const banner = document.getElementById('todayBanner');
+  const todayEvts = eventsForDate(today, evts);
+  if (todayEvts.length > 0) {
+    banner.style.display = 'block';
+    banner.innerHTML = `📌 今天（${today.getMonth()+1}/${today.getDate()}）有 <strong>${todayEvts.length} 筆</strong>已確認代課：` +
+      todayEvts.map(e => `<strong>${e.sub}</strong>${e.period ? '（'+e.period+'）' : ''} 代替 ${e.orig}`).join('、');
+  } else {
+    banner.style.display = 'none';
+  }
+
+  document.getElementById('periodLabel').textContent = periodLabel();
+
+  let html = '';
+  if (state.view === 'month') html = renderMonth(evts);
+  else if (state.view === 'week') html = renderWeek(evts);
+  else html = renderDay(evts);
+  document.getElementById('calView').innerHTML = html;
+}
+
+// ── Fetch ──
+async function loadData() {
+  const url = localStorage.getItem(GAS_URL_KEY);
+  if (!url) {
+    document.getElementById('noUrlMsg').style.display = 'block';
+    document.getElementById('calView').innerHTML = '';
+    return;
+  }
+  try {
+    const res = await fetch(url + '?action=get', { redirect: 'follow' });
+    const data = await res.json();
+    allRows = Array.isArray(data) ? data : (data.rows || []);
+    console.log('allRows count:', allRows.length);
+    if (allRows.length > 0) console.log('first row keys:', Object.keys(allRows[0]), 'sample:', allRows[0]);
+    const confirmed = allRows.filter(r => String(r['狀態']||'').trim() === '已確認');
+    console.log('confirmed count:', confirmed.length);
+    if (confirmed.length > 0) console.log('confirmed[0]:', confirmed[0]);
+    render();
+  } catch (e) {
+    document.getElementById('calView').innerHTML = `<p class="state-msg" style="color:#c7766f;">讀取失敗：${e.message}</p>`;
+  }
+}
+
+// ── Events ──
+document.getElementById('calPrev').addEventListener('click', () => navigate(-1));
+document.getElementById('calNext').addEventListener('click', () => navigate(1));
+document.getElementById('calToday').addEventListener('click', function() {
+  const now = new Date();
+  state.year = now.getFullYear(); state.month = now.getMonth(); state.day = now.getDate();
+  render();
+});
+document.querySelectorAll('.toggle-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    state.view = this.dataset.view;
+    if (state.view === 'day') {
+      const now = new Date();
+      state.year = now.getFullYear(); state.month = now.getMonth(); state.day = now.getDate();
+    }
+    render();
+  });
+});
+
+loadData();
+</script>
+</body>
+</html>

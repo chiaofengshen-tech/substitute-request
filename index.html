@@ -536,6 +536,56 @@
     margin-top: 8px;
   }
 
+  /* ── Calendar ── */
+  .cal-nav-btn {
+    width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--card); color: var(--blue-dark); font-size: 0.9rem; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .cal-nav-btn:active { opacity: 0.7; }
+  .cal-toggle-group { display: flex; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .cal-toggle-btn { padding: 5px 11px; font-size: 0.78rem; font-family: inherit; font-weight: 500; border: none; background: transparent; color: var(--muted); cursor: pointer; }
+  .cal-toggle-btn.active { background: var(--blue-dark); color: #fff; }
+  /* Month grid */
+  .cal-month { display: grid; grid-template-columns: repeat(6,1fr); gap: 2px; min-width: 360px; }
+  .cal-month-hdr { text-align: center; padding: 5px 2px; font-size: 0.7rem; font-weight: 600; color: var(--muted); }
+  .cal-month-hdr.sat { color: var(--blue-dark); }
+  .cal-day { background: var(--bg); border-radius: 5px; min-height: 72px; padding: 4px; display: flex; flex-direction: column; gap: 2px; }
+  .cal-day.this-month { background: var(--card); border: 1px solid var(--border); }
+  .cal-day.is-today { border: 2px solid var(--blue-dark); }
+  .cal-day-num { font-size: 0.68rem; font-weight: 600; color: var(--muted); width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .cal-day.is-today .cal-day-num { background: var(--blue-dark); color: #fff; }
+  /* Sub card */
+  .cal-sub-card { border-radius: 4px; padding: 2px 5px; font-size: 0.68rem; line-height: 1.35; position: relative; cursor: default; display: flex; align-items: baseline; gap: 3px; flex-wrap: wrap; }
+  .cal-sub-card.confirmed { background: #e8f9f0; border-left: 3px solid #4caf82; }
+  .cal-sub-name { font-weight: 600; color: var(--text); white-space: nowrap; }
+  .cal-arrow { color: var(--muted); font-size: 0.6rem; }
+  .cal-orig-name { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60px; }
+  .cal-tip { display: none; position: absolute; bottom: calc(100% + 5px); left: 0; background: var(--text); color: #fff; border-radius: 6px; padding: 4px 8px; font-size: 0.7rem; white-space: nowrap; pointer-events: none; z-index: 99; }
+  .cal-tip::after { content: ''; position: absolute; top: 100%; left: 10px; border: 4px solid transparent; border-top-color: var(--text); }
+  .cal-sub-card:hover .cal-tip { display: block; }
+  /* Week grid */
+  .cal-week { display: grid; grid-template-columns: 44px repeat(6,1fr); gap: 2px; min-width: 380px; }
+  .cal-wk-corner { }
+  .cal-wk-hdr { text-align: center; padding: 5px 3px; font-size: 0.7rem; font-weight: 600; color: var(--muted); background: var(--card); border-radius: 5px 5px 0 0; border: 1px solid var(--border); border-bottom: none; }
+  .cal-wk-hdr .cal-wk-date { display: block; font-size: 0.95rem; font-weight: 600; color: var(--text); margin-top: 1px; }
+  .cal-wk-hdr.today-hdr { background: var(--blue-dark); color: #fff; }
+  .cal-wk-hdr.today-hdr .cal-wk-date { color: #fff; }
+  .cal-wk-hdr.today-hdr .cal-today-tag { display: inline-block; font-size: 0.58rem; background: rgba(255,255,255,0.25); border-radius: 3px; padding: 0 3px; margin-left: 2px; }
+  .cal-period-lbl { font-size: 0.66rem; color: var(--muted); text-align: center; padding: 3px 1px; display: flex; align-items: center; justify-content: center; }
+  .cal-wk-cell { background: var(--card); border: 1px solid var(--border); padding: 3px; min-height: 40px; display: flex; flex-direction: column; gap: 2px; }
+  .cal-wk-cell.today-col { background: #f5f0e4; }
+  .cal-wk-cell.dim { background: var(--bg); border-color: transparent; opacity: 0.4; }
+  /* Day list */
+  .cal-day-view { }
+  .cal-period-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .cal-period-row:last-child { border-bottom: none; }
+  .cal-period-badge { min-width: 44px; background: var(--bg); border-radius: 5px; text-align: center; padding: 3px 5px; font-size: 0.72rem; font-weight: 600; color: var(--muted); flex-shrink: 0; }
+  .cal-day-card { border-radius: 7px; padding: 7px 10px; font-size: 0.8rem; line-height: 1.5; border: 1px solid #a3d9b8; background: #e8f9f0; }
+  .cal-day-card .dc-sub { font-weight: 600; }
+  .cal-day-card .dc-orig { color: var(--muted); font-size: 0.75rem; }
+  .cal-no-data { color: var(--muted); font-size: 0.8rem; }
+
   /* ── Teacher filter ── */
   .filter-btn {
     flex: none;
@@ -682,7 +732,10 @@
 </head>
 <body>
 <div class="container">
-  <h1>代課詢問 ＆ 追蹤管理</h1>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+    <h1 style="margin:0;">代課詢問 ＆ 追蹤管理</h1>
+    <a href="calendar.html" style="font-size:0.85rem;padding:6px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--blue-dark);text-decoration:none;font-weight:600;">📅 月曆</a>
+  </div>
 
   <div class="notice" id="connectionNotice">⚠️ 尚未確認 Google Sheets 連線，請檢查 Web App 設定。</div>
 
@@ -792,7 +845,7 @@
 const GAS_URL_KEY = 'gasWebAppUrl';
 const PENDING_KEY = 'pendingInquiries';
 const LIST_COLS = ['狀態','結算月份','代課類型','代課教師','日期','星期','節次或日代','班級','科目','授課教師','代課節數','代課日數','導師日數','假別','摘要','備註','建立時間','更新時間'];
-const LEAVE_OPTIONS = ['','公','事','病','喪','身心調適假','其他'];
+const LEAVE_OPTIONS = ['','公假','事假','病假','身心調適假'];
 const ASSIGNMENT_TEACHERS = [
   '王怡雯','王美珍','王書漢','王嘉禧','王翠津','王麗君','江敏滋','江筱帆','余璨同','吳佩儒',
   '吳宜儒','吳欣蕙','吳炎鈴','吳翠屏','吳曜崴','李孟潔','沈喬楓','卓韋瑩','卓筱晴','周百瑩',
@@ -1025,24 +1078,27 @@ function addItem() {
       </div>
     </div>
 
+    <div class="item-grid" style="margin-top:8px;">
+      <div>
+        <label class="field-label">假別 <span style="font-weight:normal;color:#999;">（選填）</span></label>
+        <select class="f-leave">
+          ${LEAVE_OPTIONS.map(o => `<option value="${o}">${o || '（未填）'}</option>`).join('')}
+        </select>
+      </div>
+      <div class="full">
+        <label class="field-label">摘要 <span style="font-weight:normal;color:#999;">（選填）</span></label>
+        <input type="text" class="f-summary" placeholder="例：協助辦理新生入學闖關活動">
+      </div>
+    </div>
+
     <div class="extra-fields-toggle" data-target="extra-${id}">
-      ▸ 月底補填欄位（假別、摘要、備註）
+      ▸ 其他（備註）
     </div>
     <div class="extra-fields" id="extra-${id}">
       <div class="item-grid" style="margin-top:4px;">
-        <div>
-          <label class="field-label">假別</label>
-          <select class="f-leave">
-            ${LEAVE_OPTIONS.map(o => `<option value="${o}">${o || '（未填）'}</option>`).join('')}
-          </select>
-        </div>
-        <div>
+        <div class="full">
           <label class="field-label">備註</label>
           <input type="text" class="f-note" placeholder="選填">
-        </div>
-        <div class="full">
-          <label class="field-label">摘要</label>
-          <input type="text" class="f-summary" placeholder="選填">
         </div>
       </div>
     </div>
@@ -1086,7 +1142,7 @@ function addItem() {
   block.querySelector('.extra-fields-toggle').addEventListener('click', function() {
     const target = document.getElementById(this.dataset.target);
     target.classList.toggle('open');
-    this.textContent = (target.classList.contains('open') ? '▾ ' : '▸ ') + '月底補填欄位（假別、摘要、備註）';
+    this.textContent = (target.classList.contains('open') ? '▾ ' : '▸ ') + '其他（備註）';
   });
 
   block.querySelector('.filter-btn').addEventListener('click', () => showInlineFilter(block));
@@ -1444,6 +1500,7 @@ function renderPending() {
           <div class="pending-actions">
             ${isDay ? `<button class="btn-partial" data-id="${rowId}">部分可代</button>` : ''}
             <button class="btn-confirm" data-id="${rowId}">確認代課</button>
+            <button class="btn-copy-msg" data-id="${rowId}">複製訊息</button>
             <button class="btn-refind-pending" data-id="${rowId}">換問老師</button>
             <button class="btn-pend-del" data-id="${rowId}">刪除</button>
           </div>
@@ -1474,6 +1531,29 @@ function renderPending() {
       const raw = window.prompt('請輸入這位老師可代的節次\n例如：1,2,3,4 或 1-4');
       if (raw === null) return;
       await convertDayToPartial(this.dataset.id, raw);
+    });
+  });
+
+  // 複製訊息（重新複製同一筆的詢問訊息）
+  container.querySelectorAll('.btn-copy-msg').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const id = this.dataset.id;
+      const row = allRows.find(r => String(r['id'] || '') === id);
+      if (!row) return;
+      const teacherName = String(row['代課教師'] || '').replace(/老師$/, '');
+      const date = fmtDateShort(String(row['日期'] || ''));
+      const weekday = row['星期'] || '';
+      const period = row['節次或日代'] || '';
+      const cls = row['班級'] || '';
+      const subject = row['科目'] || '';
+      const origTeacher = String(row['授課教師'] || '').replace(/老師$/, '');
+      const lines = [`📅 日期：${date}（${weekday}）`, `⏰ 節次：${period}`];
+      if (cls) lines.push(`🏫 班級：${cls}`);
+      if (subject) lines.push(`📚 科目：${subject}`);
+      if (origTeacher) lines.push(`👤 授課教師：${origTeacher}老師`);
+      const msg = `老師您好，\n想請問您以下時間是否方便幫忙代課？\n\n${lines.join('\n')}\n\n如果有方便的時間，再麻煩您回覆我，謝謝老師。`;
+      const ok = await copyTextContent(msg);
+      showToast(ok ? `已複製${teacherName}老師的詢問訊息 ✓` : '複製失敗，請手動複製', !ok);
     });
   });
 
@@ -1967,6 +2047,7 @@ async function fetchAndRender() {
     updateStatusDot('ok');
     renderPending();
     renderList();
+    if (window.renderCalendar) renderCalendar();
   } catch (err) {
     updateStatusDot('err');
     container.innerHTML = `<p class="empty-state" style="color:var(--error)">讀取失敗：${err.message}</p>`;
@@ -2008,8 +2089,23 @@ function renderList() {
     return (s === '已完成' || s === '已確認') ? 'badge-done' : (s === '已取消' || s === '無法代課' || s.indexOf('已刪除') === 0) ? 'badge-cancel' : 'badge-asked';
   }
 
+  // 讀取收合狀態
+  let collapsedMonths = {};
+  try { collapsedMonths = JSON.parse(localStorage.getItem('collapsedMonths') || '{}'); } catch(e) {}
+
+  // 按月份分組（保持原順序）
+  const monthOrder = [];
+  const monthGroups = {};
+  rows.forEach(row => {
+    const m = row['結算月份'] || '（未分類）';
+    if (!monthGroups[m]) { monthGroups[m] = []; monthOrder.push(m); }
+    monthGroups[m].push(row);
+  });
+
   const ths = ['操作'].concat(LIST_COLS).map(c => `<th>${c}</th>`).join('');
-  const trs = rows.map(row => {
+  const colCount = LIST_COLS.length + 1;
+
+  function makeRowHtml(row) {
     const rowId = row['id'] || '';
     const status = row['狀態'] ? String(row['狀態']) : '';
     const tds = LIST_COLS.map(c => {
@@ -2017,19 +2113,49 @@ function renderList() {
       if (c === '狀態') return `<td><span class="status-badge ${badgeClass(v)}">${v}</span></td>`;
       return `<td>${v}</td>`;
     }).join('');
-    const cancelBtn = status === '已確認'
+    const cancelBtn = (status === '已確認' || status === '已詢問')
       ? `<button class="cancel-refind-btn" data-id="${rowId}" title="取消並重新找老師">↩ 重找</button>`
       : '';
     const editBtn = (status === '已確認' || status === '已完成')
       ? `<button class="edit-record-btn" data-id="${rowId}" title="修改這筆資料">✎ 編輯</button>`
       : '';
+    const refillBtn = status === '無法代課'
+      ? `<button class="refill-form-btn" data-id="${rowId}" title="把這筆資料帶回表單重填">↩ 帶回表單</button>`
+      : '';
     const actionButtons = status.indexOf('已刪除') === 0
       ? `<button class="restore-record-btn cancel-refind-btn" data-id="${rowId}" title="復原這筆資料">↩ 復原</button><button class="permanent-delete-btn btn-permanent-delete" data-id="${rowId}" title="永久刪除這筆資料">永久刪除</button>`
-      : `<button class="del-btn" data-id="${rowId}" title="移到已刪除紀錄">🗑</button>${editBtn}${cancelBtn}`;
+      : `<button class="del-btn" data-id="${rowId}" title="移到已刪除紀錄">🗑</button>${editBtn}${cancelBtn}${refillBtn}`;
     return `<tr><td style="white-space:nowrap;">${actionButtons}</td>${tds}</tr>`;
-  }).join('');
+  }
+
+  let trs = '';
+  monthOrder.forEach(m => {
+    const mRows = monthGroups[m];
+    const isCollapsed = !!collapsedMonths[m];
+    const arrow = isCollapsed ? '▶' : '▼';
+    trs += `<tr class="month-group-header" data-month="${m}" style="cursor:pointer;background:var(--surface-alt,#f5ede3);">
+      <td colspan="${colCount}" style="padding:6px 12px;font-weight:bold;color:var(--accent);user-select:none;touch-action:manipulation;">
+        ${arrow} ${m}（${mRows.length} 筆）
+      </td>
+    </tr>`;
+    if (!isCollapsed) {
+      trs += mRows.map(makeRowHtml).join('');
+    }
+  });
 
   container.innerHTML = `<div class="table-wrap"><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+
+  container.querySelectorAll('.month-group-header').forEach(hdr => {
+    function toggleMonth(e) {
+      e.preventDefault();
+      const m = this.dataset.month;
+      collapsedMonths[m] = !collapsedMonths[m];
+      try { localStorage.setItem('collapsedMonths', JSON.stringify(collapsedMonths)); } catch(e) {}
+      renderList();
+    }
+    hdr.addEventListener('click', toggleMonth);
+    hdr.addEventListener('touchend', toggleMonth);
+  });
 
   container.querySelectorAll('.del-btn').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -2054,6 +2180,19 @@ function renderList() {
     });
   });
 
+  container.querySelectorAll('.refill-form-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.dataset.id;
+      const row = allRows.find(r => String(r['id'] || '') === id);
+      if (!row) return;
+      cancelAndRefind(row, {
+        status: '無法代課',
+        confirmText: '把這筆資料帶回表單，代課老師欄位留空讓你重填？',
+        toastText: '已帶回表單，請填入新的代課老師'
+      });
+    });
+  });
+
   container.querySelectorAll('.restore-record-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       if (confirm('確定復原這筆資料？')) restoreDeletedRow(this.dataset.id);
@@ -2068,6 +2207,294 @@ function renderList() {
     });
   });
 }
+
+/* ══ Calendar ══ */
+(function() {
+  // state
+  const state = { view: 'month', year: 0, month: 0, day: 0 };
+  (function initDate() {
+    const now = new Date();
+    state.year = now.getFullYear();
+    state.month = now.getMonth(); // 0-based
+    state.day = now.getDate();
+  })();
+
+  // Helpers: parse date strings like "9/4" "114/9/4" "114年9月4日"
+  function parseRowDate(raw) {
+    if (!raw) return null;
+    const s = String(raw).trim();
+    // "114/9/4" or "115/9/4"
+    let m = s.match(/^(\d{2,3})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+    if (m) {
+      const y = parseInt(m[1]) + (parseInt(m[1]) < 200 ? 1911 : 0);
+      return new Date(y, parseInt(m[2]) - 1, parseInt(m[3]));
+    }
+    // "9/4" or "09/04"
+    m = s.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
+    if (m) {
+      const now = new Date();
+      return new Date(now.getFullYear(), parseInt(m[1]) - 1, parseInt(m[2]));
+    }
+    // "114年9月4日"
+    m = s.match(/(\d{2,3})年(\d{1,2})月(\d{1,2})日/);
+    if (m) {
+      const y = parseInt(m[1]) + (parseInt(m[1]) < 200 ? 1911 : 0);
+      return new Date(y, parseInt(m[2]) - 1, parseInt(m[3]));
+    }
+    return null;
+  }
+
+  function isSameDay(a, b) {
+    return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+
+  // Get confirmed rows with parsed dates
+  function getConfirmed() {
+    if (!window.allRows) return [];
+    return window.allRows.filter(r => String(r['狀態'] || '').trim() === '已確認').map(r => {
+      const dates = [];
+      // handle multiple items: 代課日期1, 代課日期2, ...
+      for (let i = 1; i <= 6; i++) {
+        const d = parseRowDate(r[`代課日期${i}`] || (i === 1 ? r['代課日期'] : null));
+        if (d) dates.push({ date: d, period: r[`節次或日代${i}`] || r['節次或日代'] || '' });
+      }
+      // fallback: no indexed dates
+      if (dates.length === 0) {
+        const d = parseRowDate(r['代課日期'] || r['日期']);
+        if (d) dates.push({ date: d, period: r['節次或日代'] || '' });
+      }
+      return { row: r, dates };
+    });
+  }
+
+  // Collect events per calendar date
+  function eventsForDate(d, confirmed) {
+    const evts = [];
+    confirmed.forEach(({ row, dates }) => {
+      dates.forEach(({ date, period }) => {
+        if (isSameDay(date, d)) {
+          evts.push({ sub: row['代課老師'] || '—', orig: row['授課老師'] || row['授課教師'] || '', period });
+        }
+      });
+    });
+    return evts;
+  }
+
+  function subCard(evt) {
+    const tipText = evt.period ? `${evt.period}` : '';
+    return `<div class="cal-sub-card confirmed">
+      ${tipText ? `<span class="cal-tip">${tipText}</span>` : ''}
+      <span class="cal-sub-name">${evt.sub}</span>
+      <span class="cal-arrow">→</span>
+      <span class="cal-orig-name">${evt.orig}</span>
+    </div>`;
+  }
+
+  // Render month grid
+  function renderMonth(confirmed) {
+    const year = state.year, mon = state.month;
+    const firstDay = new Date(year, mon, 1);
+    const lastDay = new Date(year, mon + 1, 0);
+    const today = new Date();
+
+    // Mon=0..Sat=5; JS getDay() Sun=0,Mon=1..Sat=6
+    const startDow = (firstDay.getDay() + 6) % 7; // offset: Mon=0
+    // We only show Mon-Sat (skip Sunday)
+
+    const DAYS = ['週一','週二','週三','週四','週五','週六'];
+    let html = `<div class="cal-month">`;
+    html += DAYS.map((d, i) => `<div class="cal-month-hdr${i===5?' sat':''}">${d}</div>`).join('');
+
+    // leading blanks (prev month) - only for Mon-Sat columns
+    for (let i = 0; i < startDow && i < 6; i++) {
+      html += `<div class="cal-day"></div>`;
+    }
+
+    let col = startDow; // current column position (0=Mon..5=Sat)
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      const date = new Date(year, mon, d);
+      const dow = (date.getDay() + 6) % 7; // Mon=0..Sun=6
+      if (dow === 6) continue; // skip Sunday
+
+      const isToday = isSameDay(date, today);
+      const evts = eventsForDate(date, confirmed);
+      html += `<div class="cal-day this-month${isToday ? ' is-today' : ''}">
+        <span class="cal-day-num">${d}</span>
+        ${evts.map(subCard).join('')}
+      </div>`;
+      col++;
+    }
+    // trailing blanks to fill last row
+    const rem = (6 - col % 6) % 6;
+    for (let i = 0; i < rem; i++) html += `<div class="cal-day"></div>`;
+    html += `</div>`;
+    return html;
+  }
+
+  // Render week grid
+  function renderWeek(confirmed) {
+    const today = new Date();
+    // compute Mon of current week
+    const cur = new Date(state.year, state.month, state.day);
+    const dow = (cur.getDay() + 6) % 7;
+    const mon = new Date(cur); mon.setDate(cur.getDate() - dow);
+
+    // Build day array Mon-Sat
+    const days = [];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(mon); d.setDate(mon.getDate() + i);
+      days.push(d);
+    }
+
+    // Collect all periods across this week's events
+    const allPeriods = new Set();
+    days.forEach(d => {
+      eventsForDate(d, confirmed).forEach(e => {
+        (e.period || '').split(/[,，、]/g).forEach(p => { if (p.trim()) allPeriods.add(p.trim()); });
+      });
+    });
+    if (allPeriods.size === 0) allPeriods.add('—');
+    const periods = Array.from(allPeriods).sort();
+
+    let html = `<div class="cal-week">`;
+    // header row
+    html += `<div class="cal-wk-corner"></div>`;
+    days.forEach((d, i) => {
+      const isToday = isSameDay(d, today);
+      const dowNames = ['週一','週二','週三','週四','週五','週六'];
+      html += `<div class="cal-wk-hdr${isToday ? ' today-hdr' : ''}">
+        ${dowNames[i]}${isToday ? '<span class="cal-today-tag">今</span>' : ''}
+        <span class="cal-wk-date">${d.getDate()}</span>
+      </div>`;
+    });
+
+    // period rows
+    periods.forEach(p => {
+      html += `<div class="cal-period-lbl">${p !== '—' ? p : ''}</div>`;
+      days.forEach(d => {
+        const isToday = isSameDay(d, today);
+        const evts = eventsForDate(d, confirmed).filter(e => p === '—' || (e.period || '').includes(p));
+        html += `<div class="cal-wk-cell${isToday ? ' today-col' : ''}">
+          ${evts.map(e => `<div class="cal-sub-card confirmed" style="font-size:0.66rem;">
+            <span class="cal-sub-name">${e.sub}</span><span class="cal-arrow">→</span><span class="cal-orig-name">${e.orig}</span>
+          </div>`).join('')}
+        </div>`;
+      });
+    });
+    html += `</div>`;
+    return html;
+  }
+
+  // Render day list
+  function renderDay(confirmed) {
+    const d = new Date(state.year, state.month, state.day);
+    const evts = eventsForDate(d, confirmed);
+    const WEEKDAY = ['日','一','二','三','四','五','六'];
+    let html = `<div class="cal-day-view">`;
+    if (evts.length === 0) {
+      html += `<p class="cal-no-data" style="padding:16px 0;">今日無已確認代課</p>`;
+    } else {
+      // group by period
+      const groups = {};
+      evts.forEach(e => { const k = e.period || '（未指定）'; (groups[k] = groups[k] || []).push(e); });
+      Object.entries(groups).forEach(([p, es]) => {
+        html += `<div class="cal-period-row">
+          <div class="cal-period-badge">${p}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${es.map(e => `<div class="cal-day-card">
+              <div class="dc-sub">${e.sub}</div>
+              <div class="dc-orig">代替 ${e.orig} 老師</div>
+            </div>`).join('')}
+          </div>
+        </div>`;
+      });
+    }
+    html += `</div>`;
+    return html;
+  }
+
+  function periodLabel() {
+    const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+    const WEEKDAY = ['日','一','二','三','四','五','六'];
+    if (state.view === 'month') return `${state.year}年 ${months[state.month]}`;
+    if (state.view === 'week') {
+      const cur = new Date(state.year, state.month, state.day);
+      const dow = (cur.getDay() + 6) % 7;
+      const mon = new Date(cur); mon.setDate(cur.getDate() - dow);
+      const sat = new Date(mon); sat.setDate(mon.getDate() + 5);
+      return `${mon.getMonth()+1}/${mon.getDate()} – ${sat.getMonth()+1}/${sat.getDate()}`;
+    }
+    const d = new Date(state.year, state.month, state.day);
+    return `${state.year}年 ${state.month+1}月${state.day}日（週${WEEKDAY[d.getDay()]}）`;
+  }
+
+  function navigate(dir) {
+    if (state.view === 'month') {
+      state.month += dir;
+      if (state.month < 0) { state.month = 11; state.year--; }
+      if (state.month > 11) { state.month = 0; state.year++; }
+    } else if (state.view === 'week') {
+      const d = new Date(state.year, state.month, state.day);
+      d.setDate(d.getDate() + dir * 7);
+      state.year = d.getFullYear(); state.month = d.getMonth(); state.day = d.getDate();
+    } else {
+      const d = new Date(state.year, state.month, state.day);
+      d.setDate(d.getDate() + dir);
+      state.year = d.getFullYear(); state.month = d.getMonth(); state.day = d.getDate();
+    }
+    render();
+  }
+
+  function render() {
+    const confirmed = getConfirmed();
+    const today = new Date();
+
+    // Today banner
+    const banner = document.getElementById('calTodayBanner');
+    const todayEvts = eventsForDate(today, confirmed);
+    if (todayEvts.length > 0) {
+      banner.style.display = 'block';
+      banner.innerHTML = `📌 今天（${today.getMonth()+1}/${today.getDate()}）有 <strong>${todayEvts.length} 筆</strong>已確認代課：` +
+        todayEvts.map(e => `<strong>${e.sub}</strong>（${e.period || '—'}）代替 ${e.orig}`).join('　');
+    } else {
+      banner.style.display = 'none';
+    }
+
+    document.getElementById('calPeriodLabel').textContent = periodLabel();
+
+    let html = '';
+    if (state.view === 'month') html = renderMonth(confirmed);
+    else if (state.view === 'week') html = renderWeek(confirmed);
+    else html = renderDay(confirmed);
+    document.getElementById('calView').innerHTML = html;
+  }
+
+  window.renderCalendar = render;
+
+  // Wire buttons (safe: may be called before DOM ready if wrapped in DOMContentLoaded below)
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('calPrev').addEventListener('click', () => navigate(-1));
+    document.getElementById('calNext').addEventListener('click', () => navigate(1));
+    document.getElementById('calToday').addEventListener('click', function() {
+      const now = new Date();
+      state.year = now.getFullYear(); state.month = now.getMonth(); state.day = now.getDate();
+      render();
+    });
+    document.querySelectorAll('.cal-toggle-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.cal-toggle-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        state.view = this.dataset.view;
+        // sync day to today when switching to day view for first time
+        if (state.view === 'day') {
+          const now = new Date();
+          state.year = now.getFullYear(); state.month = now.getMonth(); state.day = now.getDate();
+        }
+        render();
+      });
+    });
+  });
+})();
 
 /* ── clear form ── */
 function clearAll() {
@@ -2290,19 +2717,22 @@ function buildTitle(month, type) {
 }
 
 async function generateReport(type) {
-  const month = document.getElementById('reportMonth').value.trim();
-  if (!month) { showToast('請先填寫結算月份', true); return; }
+  const monthRaw = document.getElementById('reportMonth').value.trim();
+  if (!monthRaw) { showToast('請先填寫結算月份', true); return; }
   showToast('產生中…');
   const rows = await fetchAllRows();
   if (!rows) return;
 
+  const months = monthRaw.split('+').map(s => s.trim()).filter(Boolean);
+  const month = months[0]; // 用第一個月份當標題基準
+
   const filtered = rows.filter(function(r) {
     const status = String(r['狀態'] || '').trim();
-    return r['結算月份'] === month &&
+    return months.includes(r['結算月份']) &&
       r['代課類型'] === type &&
       (status === '已確認' || status === '已完成');
   });
-  if (filtered.length === 0) { showToast('找不到 ' + month + ' 的' + type + '資料', true); return; }
+  if (filtered.length === 0) { showToast('找不到 ' + monthRaw + ' 的' + type + '資料', true); return; }
 
   // 依代課教師分組
   const groups = {};
@@ -2395,7 +2825,7 @@ async function generateReport(type) {
     ];
     const r1 = ws.getRow(1); r1.height = 21;
     const t = r1.getCell(1);
-    t.value = buildTitle(month, '節代');
+    t.value = months.length > 1 ? months.map(m => buildTitle(m, '節代')).join('＋') : buildTitle(month, '節代');
     t.font = fTitle; t.alignment = { horizontal: 'center', vertical: 'middle' };
     ws.mergeCells('A1:H1');
 
@@ -2434,11 +2864,11 @@ async function generateReport(type) {
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = month + type + '代課一覽表.xlsx';
+  a.href = url; a.download = monthRaw.replace(/\+/g, '') + type + '代課一覽表.xlsx';
   document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('已下載 ' + month + type + '代課一覽表.xlsx');
+  showToast('已下載 ' + monthRaw.replace(/\+/g, '') + type + '代課一覽表.xlsx');
 }
 
 document.getElementById('genPeriodBtn').addEventListener('click', function() { generateReport('節代'); });
