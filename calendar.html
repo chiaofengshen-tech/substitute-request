@@ -223,7 +223,7 @@ function renderMonth(evts) {
     if (dow === 6) continue; // skip Sunday
     const isToday = isSameDay(date, today);
     const de = eventsForDate(date, evts);
-    bodyHtml += `<div class="cal-day this-month${isToday ? ' is-today' : ''}">
+    bodyHtml += `<div class="cal-day this-month${isToday ? ' is-today' : ''}" data-y="${year}" data-m="${month}" data-d="${d}" style="cursor:pointer;">
       <span class="cal-day-num">${d}</span>
       ${de.map(e => subCard(e, false)).join('')}
     </div>`;
@@ -344,6 +344,19 @@ function render() {
   else if (state.view === 'week') html = renderWeek(evts);
   else html = renderDay(evts);
   document.getElementById('calView').innerHTML = html;
+
+  // 月 view：點日期跳到日 view
+  document.querySelectorAll('.cal-day[data-d]').forEach(cell => {
+    cell.addEventListener('click', function() {
+      state.year = parseInt(this.dataset.y);
+      state.month = parseInt(this.dataset.m);
+      state.day = parseInt(this.dataset.d);
+      state.view = 'day';
+      document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector('.toggle-btn[data-view="day"]').classList.add('active');
+      render();
+    });
+  });
 }
 
 // ── Fetch ──
