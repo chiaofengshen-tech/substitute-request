@@ -276,14 +276,12 @@ function renderDay(evts) {
   } else {
     de.forEach(e => {
       html += `<div class="period-row">
-        <div class="day-card" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-          <div style="display:flex;align-items:center;gap:6px;min-width:0;">
-            <span class="dc-sub">${e.sub}</span>
-            <span style="color:var(--muted);font-size:0.8rem;">→</span>
-            <span class="dc-orig" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.orig}</span>
-          </div>
-          <span style="flex-shrink:0;font-size:0.72rem;color:var(--muted);white-space:nowrap;">${e.period || '—'}</span>
+        <div class="day-card" style="display:inline-flex;align-items:center;gap:6px;width:auto;">
+          <span class="dc-sub">${e.sub}</span>
+          <span style="color:var(--muted);font-size:0.8rem;">→</span>
+          <span class="dc-orig">${e.orig}</span>
         </div>
+        ${e.period ? `<span style="font-size:0.72rem;color:var(--muted);white-space:nowrap;flex-shrink:0;">${e.period}</span>` : ''}
       </div>`;
     });
   }
