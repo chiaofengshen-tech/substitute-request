@@ -124,7 +124,6 @@ body {
     <button class="nav-btn" id="calNext">›</button>
     <div class="toggle-group">
       <button class="toggle-btn active" data-view="month">月</button>
-      <button class="toggle-btn" data-view="week">週</button>
       <button class="toggle-btn" data-view="day">日</button>
     </div>
   </div>
@@ -277,14 +276,14 @@ function renderDay(evts) {
   } else {
     de.forEach(e => {
       html += `<div class="period-row" style="align-items:center;">
-        <div class="day-card" style="flex:1;">
+        <div class="day-card" style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:6px;">
             <span class="dc-sub">${e.sub}</span>
             <span style="color:var(--muted);font-size:0.8rem;">→</span>
-            <span class="dc-orig">${e.orig}</span>
+            <span class="dc-orig" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.orig}</span>
           </div>
         </div>
-        <div class="period-badge" style="flex-shrink:0;margin-left:8px;">${e.period || '—'}</div>
+        <div class="period-badge" style="flex-shrink:0;margin-left:8px;white-space:nowrap;font-size:0.7rem;">${e.period || '—'}</div>
       </div>`;
     });
   }
