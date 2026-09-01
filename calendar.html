@@ -71,7 +71,7 @@ body {
 .cal-day.is-today .cal-day-num { background: var(--accent); color: #fff; }
 
 /* Sub card */
-.sub-card { border-radius: 4px; padding: 2px 5px; font-size: 0.67rem; line-height: 1.35; position: relative; cursor: default; display: flex; align-items: baseline; gap: 3px; flex-wrap: wrap; }
+.sub-card { border-radius: 4px; padding: 2px 5px; font-size: 0.67rem; line-height: 1.35; position: relative; cursor: default; display: flex; flex-direction: column; gap: 0; }
 .sub-card.confirmed { background: var(--confirmed-bg); border-left: 3px solid var(--confirmed); }
 .sub-name { font-weight: 600; color: var(--text); white-space: nowrap; }
 .sub-arrow { color: var(--muted); font-size: 0.6rem; }
@@ -198,8 +198,7 @@ function subCard(e, small) {
   const fs = small ? 'font-size:0.64rem;' : '';
   return `<div class="sub-card confirmed" style="${fs}">
     ${e.period ? `<span class="sub-tip">${e.period}</span>` : ''}
-    <span class="sub-name">${e.sub}</span>
-    <span class="sub-arrow">→</span>
+    <span class="sub-name">${e.sub}↓</span>
     <span class="sub-orig">${e.orig}</span>
   </div>`;
 }
