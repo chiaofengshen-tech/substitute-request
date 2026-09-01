@@ -96,7 +96,7 @@ body {
 /* ── Day View ── */
 .day-view { }
 .day-view-title { font-size: 1.1rem; font-weight: 600; color: var(--accent); margin-bottom: 12px; }
-.period-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.period-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .period-row:last-child { border-bottom: none; }
 .period-badge { min-width: 46px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; text-align: center; padding: 3px 5px; font-size: 0.72rem; font-weight: 600; color: var(--muted); flex-shrink: 0; }
 .day-card { border-radius: 8px; padding: 8px 12px; font-size: 0.82rem; line-height: 1.5; background: var(--confirmed-bg); border: 1px solid var(--confirmed-border); }
@@ -281,7 +281,7 @@ function renderDay(evts) {
           <span style="color:var(--muted);font-size:0.8rem;">→</span>
           <span class="dc-orig">${e.orig}</span>
         </div>
-        ${e.period ? `<span style="font-size:0.72rem;color:var(--muted);white-space:nowrap;flex-shrink:0;">${e.period}</span>` : ''}
+        ${e.period ? `<span style="font-size:0.82rem;color:var(--muted);white-space:nowrap;flex-shrink:0;align-self:center;">${e.period}</span>` : ''}
       </div>`;
     });
   }
