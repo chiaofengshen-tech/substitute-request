@@ -240,15 +240,9 @@ function renderWeek(evts) {
   const mon = new Date(cur); mon.setDate(cur.getDate() - dow);
   const days = Array.from({length: 6}, (_, i) => { const d = new Date(mon); d.setDate(mon.getDate() + i); return d; });
 
-  const periods = new Set();
-  days.forEach(d => eventsForDate(d, evts).forEach(e => {
-    (e.period || '').split(/[,，、]/g).forEach(p => { if (p.trim()) periods.add(p.trim()); });
-  }));
-  if (periods.size === 0) periods.add('—');
-  const periodArr = Array.from(periods).sort();
-
   const DOWS = ['週一','週二','週三','週四','週五','週六'];
-  let html = `<div class="cal-week"><div class="wk-corner"></div>`;
+  let html = `<div class="cal-week" style="grid-template-columns:auto repeat(6,1fr);">`;
+  html += `<div class="wk-corner"></div>`;
   days.forEach((d, i) => {
     const isToday = isSameDay(d, today);
     html += `<div class="wk-hdr${isToday ? ' today-hdr' : ''}">
@@ -257,16 +251,16 @@ function renderWeek(evts) {
     </div>`;
   });
 
-  periodArr.forEach(p => {
-    html += `<div class="period-lbl">${p !== '—' ? p : ''}</div>`;
-    days.forEach(d => {
-      const isToday = isSameDay(d, today);
-      const de = eventsForDate(d, evts).filter(e => p === '—' || (e.period || '').includes(p));
-      html += `<div class="wk-cell${isToday ? ' today-col' : ''}">
-        ${de.map(e => subCard(e, true)).join('')}
-      </div>`;
-    });
+  // 單一列：直接顯示每天的代課
+  html += `<div class="period-lbl"></div>`;
+  days.forEach(d => {
+    const isToday = isSameDay(d, today);
+    const de = eventsForDate(d, evts);
+    html += `<div class="wk-cell${isToday ? ' today-col' : ''}" style="min-height:60px;">
+      ${de.map(e => subCard(e, true)).join('')}
+    </div>`;
   });
+
   html += `</div>`;
   return html;
 }
