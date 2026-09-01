@@ -275,12 +275,16 @@ function renderDay(evts) {
   if (de.length === 0) {
     html += `<p class="no-data">當日無已確認代課</p>`;
   } else {
-    const groups = {};
-    de.forEach(e => { const k = e.period || '（未指定）'; (groups[k] = groups[k] || []).push(e); });
-    Object.entries(groups).forEach(([p, es]) => {
-      html += `<div class="period-row"><div class="period-badge">${p}</div><div style="display:flex;flex-wrap:wrap;gap:6px;">
-        ${es.map(e => `<div class="day-card"><div class="dc-sub">${e.sub}</div><div class="dc-orig">代替 ${e.orig} 老師</div></div>`).join('')}
-      </div></div>`;
+    de.forEach(e => {
+      html += `<div class="period-row">
+        <div style="flex:1;">
+          <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+            <span class="dc-sub" style="font-size:1rem;font-weight:700;">${e.sub}</span>
+            <span class="period-badge" style="font-size:0.75rem;">${e.period || '—'}</span>
+          </div>
+          <div class="dc-orig" style="margin-top:2px;">代替 ${e.orig} 老師</div>
+        </div>
+      </div>`;
     });
   }
   html += `</div>`;
