@@ -283,7 +283,7 @@ function renderDay(evts) {
             <span class="dc-orig" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.orig}</span>
           </div>
         </div>
-        <div class="period-badge" style="flex-shrink:0;margin-left:8px;white-space:nowrap;font-size:0.7rem;">${e.period || '—'}</div>
+        <div class="period-badge" style="flex-shrink:0;margin-left:8px;white-space:nowrap;font-size:0.7rem;min-width:72px;text-align:center;">${e.period || '—'}</div>
       </div>`;
     });
   }
