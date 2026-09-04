@@ -1586,7 +1586,12 @@ async function confirmPendingItem(id, editedPeriod, editedClass) {
   if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
   try {
     const changes = { '狀態': '已確認', '更新時間': nowStr() };
-    if (editedPeriod) changes['節次或日代'] = editedPeriod;
+    if (editedPeriod) {
+      changes['節次或日代'] = editedPeriod;
+      // 重新計算代課節數
+      const nums = editedPeriod.replace(/第|節/g, '').split(/[,，、\s]+/).map(Number).filter(n => n >= 1 && n <= 7);
+      if (nums.length > 0) changes['代課節數'] = nums.length;
+    }
     if (editedClass) changes['班級'] = editedClass;
     const res = await fetch(gasUrl, {
       method: 'POST',
