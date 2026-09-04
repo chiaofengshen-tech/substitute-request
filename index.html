@@ -398,7 +398,7 @@
   .edit-record-btn:hover { background: #e8d8c5; }
   .pending-table {
     width: 100%;
-    min-width: 0;
+    min-width: 700px;
     table-layout: fixed;
     border-collapse: collapse;
     font-size: 0.9rem;
@@ -1461,10 +1461,10 @@ function renderPending() {
     return groupHeader + itemRows;
   }).join('');
 
-  container.innerHTML = `<table class="pending-table">
+  container.innerHTML = `<div class="table-wrap"><table class="pending-table">
     <thead><tr><th>日期</th><th>星期</th><th>節次<br>（可編輯）</th><th>班級<br>（可編輯）</th><th>科目</th><th>授課教師</th><th>操作</th></tr></thead>
     <tbody>${rows}</tbody>
-  </table>`;
+  </table></div>`;
 
   // 確認代課（單筆）
   container.querySelectorAll('.btn-confirm').forEach(btn => {
