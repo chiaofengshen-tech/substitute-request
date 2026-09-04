@@ -2388,7 +2388,10 @@ async function generateReport(type) {
   const rows = await fetchAllRows();
   if (!rows) return;
 
-  const months = monthRaw.split('+').map(s => s.trim()).filter(Boolean);
+  const rawParts = monthRaw.split('+').map(s => s.trim()).filter(Boolean);
+  // 若某段沒有「年」，自動補第一段的年份前綴
+  const yearPrefix = (rawParts[0].match(/^(\d+年)/) || [])[1] || '';
+  const months = rawParts.map(s => /\d+年/.test(s) ? s : yearPrefix + s);
   const month = months[0]; // 用第一個月份當標題基準
 
   const filtered = rows.filter(function(r) {
