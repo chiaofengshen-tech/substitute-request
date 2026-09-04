@@ -429,7 +429,7 @@
   .pending-table th:nth-child(6) { width: 17%; }
   .pending-table th:nth-child(7) { width: 29%; }
   .pending-table tr:hover td { background: #fffbf0; }
-  .editable-period {
+  .editable-period, .editable-class {
     border: 1px solid transparent;
     border-radius: 6px;
     padding: 3px 6px;
@@ -437,8 +437,8 @@
     display: inline-block;
     cursor: text;
   }
-  .editable-period:hover { border-color: var(--blue); background: #fff; }
-  .editable-period:focus { outline: none; border-color: var(--blue-dark); background: #fff; }
+  .editable-period:hover, .editable-class:hover { border-color: var(--blue); background: #fff; }
+  .editable-period:focus, .editable-class:focus { outline: none; border-color: var(--blue-dark); background: #fff; }
   .pending-actions { display: flex; flex-wrap: wrap; gap: 5px; }
   .btn-confirm {
     flex: none; padding: 5px 7px; font-size: 0.75rem;
@@ -1443,7 +1443,7 @@ function renderPending() {
         <td data-label="日期">${displayDate}</td>
         <td data-label="星期">${row['星期'] || ''}</td>
         <td data-label="節次（可編輯）">${periodCell}</td>
-        <td data-label="班級">${row['班級'] || ''}</td>
+        <td data-label="班級（可編輯）"><span class="editable-class" contenteditable="true" data-id="${rowId}">${row['班級'] || ''}</span></td>
         <td data-label="科目">${row['科目'] || ''}</td>
         <td data-label="授課教師">${row['授課教師'] || ''}</td>
         <td class="pending-action-cell" data-label="操作">
@@ -1462,7 +1462,7 @@ function renderPending() {
   }).join('');
 
   container.innerHTML = `<table class="pending-table">
-    <thead><tr><th>日期</th><th>星期</th><th>節次<br>（可編輯）</th><th>班級</th><th>科目</th><th>授課教師</th><th>操作</th></tr></thead>
+    <thead><tr><th>日期</th><th>星期</th><th>節次<br>（可編輯）</th><th>班級<br>（可編輯）</th><th>科目</th><th>授課教師</th><th>操作</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 
@@ -1471,7 +1471,8 @@ function renderPending() {
     btn.addEventListener('click', async function() {
       const id = this.dataset.id;
       const el = container.querySelector(`.editable-period[data-id="${id}"]`);
-      await confirmPendingItem(id, el ? el.textContent.trim() : '');
+      const elClass = container.querySelector(`.editable-class[data-id="${id}"]`);
+      await confirmPendingItem(id, el ? el.textContent.trim() : '', elClass ? elClass.textContent.trim() : '');
     });
   });
 
@@ -1579,11 +1580,12 @@ async function convertDayToPartial(id, rawPeriod) {
   }
 }
 
-async function confirmPendingItem(id, editedPeriod) {
+async function confirmPendingItem(id, editedPeriod, editedClass) {
   if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
   try {
     const changes = { '狀態': '已確認', '更新時間': nowStr() };
     if (editedPeriod) changes['節次或日代'] = editedPeriod;
+    if (editedClass) changes['班級'] = editedClass;
     const res = await fetch(gasUrl, {
       method: 'POST',
       body: JSON.stringify({ action: 'update', id: id, changes: changes }),
