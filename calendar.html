@@ -182,7 +182,8 @@ function getEvents(rows) {
       date: d,
       sub: String(r['代課教師'] || r['代課老師'] || '—').replace(/老師$/, ''),
       orig: String(r['授課教師'] || r['授課老師'] || '').replace(/老師$/, ''),
-      period: r['節次或日代'] || ''
+      period: r['節次或日代'] || '',
+      cls: String(r['班級'] || '')
     });
   });
   return evts;
@@ -195,8 +196,10 @@ function eventsForDate(d, evts) {
 // ── Sub card HTML ──
 function subCard(e, small) {
   const fs = small ? 'font-size:0.64rem;' : '';
+  const tipParts = [e.cls, e.period].filter(Boolean);
+  const tip = tipParts.join('<br>');
   return `<div class="sub-card confirmed" style="${fs}">
-    ${e.period ? `<span class="sub-tip">${e.period}</span>` : ''}
+    ${tip ? `<span class="sub-tip">${tip}</span>` : ''}
     <span class="sub-name">${e.sub}↓</span>
     <span class="sub-orig">${e.orig}</span>
   </div>`;
