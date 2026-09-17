@@ -2708,7 +2708,7 @@ async function generateDetailReport() {
   const filtered = rows.filter(function(r) {
     const status = String(r['狀態'] || '').trim();
     return months.includes(r['結算月份']) &&
-      r['代課類型'] === '節代' &&
+      (r['代課類型'] === '節代' || r['代課類型'] === '日代') &&
       status === '已確認';
   });
 
