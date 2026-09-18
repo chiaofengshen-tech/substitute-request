@@ -2060,6 +2060,10 @@ function renderList() {
     if (!monthGroups[m]) { monthGroups[m] = []; monthOrder.push(m); }
     monthGroups[m].push(row);
   });
+  // 每個月份內依日期排序
+  Object.keys(monthGroups).forEach(m => {
+    monthGroups[m].sort((a, b) => String(a['日期'] || '').localeCompare(String(b['日期'] || '')));
+  });
 
   const ths = ['操作'].concat(LIST_COLS).map(c => `<th>${c}</th>`).join('');
   const colCount = LIST_COLS.length + 1;
