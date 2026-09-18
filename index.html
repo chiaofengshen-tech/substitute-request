@@ -1497,8 +1497,10 @@ function renderPending() {
       const teacherName = String(row['代課教師'] || '').replace(/老師$/, '');
       const date = fmtDateShort(String(row['日期'] || ''));
       const weekday = row['星期'] || '';
-      const period = row['節次或日代'] || '';
-      const cls = row['班級'] || '';
+      const elPeriod = container.querySelector(`.editable-period[data-id="${id}"]`);
+      const elClass = container.querySelector(`.editable-class[data-id="${id}"]`);
+      const period = (elPeriod ? elPeriod.textContent.trim() : '') || row['節次或日代'] || '';
+      const cls = (elClass ? elClass.textContent.trim() : '') || row['班級'] || '';
       const subject = row['科目'] || '';
       const origTeacher = String(row['授課教師'] || '').replace(/老師$/, '');
       const lines = [`📅 日期：${date}（${weekday}）`, `⏰ 節次：${period}`];
@@ -2065,22 +2067,28 @@ function renderList() {
     monthGroups[m].sort((a, b) => String(a['日期'] || '').localeCompare(String(b['日期'] || '')));
   });
 
-  const ths = ['操作'].concat(LIST_COLS).map(c => `<th>${c}</th>`).join('');
-  const colCount = LIST_COLS.length + 1;
+  const HIDDEN_COLS = new Set(['結算月份', '建立時間', '更新時間']);
+  const VISIBLE_COLS = LIST_COLS.filter(c => !HIDDEN_COLS.has(c));
+  const ths = ['操作'].concat(VISIBLE_COLS).map(c => `<th>${c}</th>`).join('');
+  const colCount = VISIBLE_COLS.length + 1;
 
   function makeRowHtml(row) {
     const rowId = row['id'] || '';
     const status = row['狀態'] ? String(row['狀態']) : '';
-    const tds = LIST_COLS.map(c => {
+    const tds = VISIBLE_COLS.map(c => {
       const v = row[c] != null ? String(row[c]) : '';
       if (c === '狀態') return `<td><span class="status-badge ${badgeClass(v)}">${v}</span></td>`;
+      if (c === '日期') {
+        const m = v.match(/(?:\d+\/)?(\d{1,2})\/(\d{1,2})/);
+        return `<td>${m ? m[1] + '/' + m[2] : v}</td>`;
+      }
       return `<td>${v}</td>`;
     }).join('');
     const cancelBtn = (status === '已確認' || status === '已詢問')
-      ? `<button class="cancel-refind-btn" data-id="${rowId}" title="取消並重新找老師">↩ 重找</button>`
+      ? `<button class="cancel-refind-btn" data-id="${rowId}" title="取消並重新找老師">↩</button>`
       : '';
     const editBtn = (status === '已確認' || status === '已完成')
-      ? `<button class="edit-record-btn" data-id="${rowId}" title="修改這筆資料">✎ 編輯</button>`
+      ? `<button class="edit-record-btn" data-id="${rowId}" title="修改這筆資料">✎</button>`
       : '';
     const refillBtn = status === '無法代課'
       ? `<button class="refill-form-btn" data-id="${rowId}" title="把這筆資料帶回表單重填">↩ 帶回表單</button>`
