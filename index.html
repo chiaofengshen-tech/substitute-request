@@ -797,7 +797,7 @@
 /* ── constants ── */
 const GAS_URL_KEY = 'gasWebAppUrl';
 const PENDING_KEY = 'pendingInquiries';
-const LIST_COLS = ['狀態','結算月份','代課類型','代課教師','日期','星期','節次或日代','班級','科目','授課教師','代課節數','代課日數','導師日數','假別','摘要','備註','建立時間','更新時間'];
+const LIST_COLS = ['狀態','結算月份','單位','代課類型','代課教師','日期','星期','節次或日代','班級','科目','授課教師','代課節數','代課時數','代課日數','導師日數','假別','摘要','備註','建立時間','更新時間'];
 const LEAVE_OPTIONS = ['','公假','事假','病假','身心調適假'];
 const ASSIGNMENT_TEACHERS = [
   '王怡雯','王美珍','王書漢','王嘉禧','王翠津','王麗君','江敏滋','江筱帆','余璨同','吳佩儒',
@@ -902,10 +902,19 @@ function setConfirmedEditMode(active) {
 
 function updateTypeVisibility(block) {
   const checked = block.querySelector('.type-row input[type="radio"]:checked');
-  const isDay = checked && checked.value === 'day';
-  block.querySelectorAll('.period-only').forEach(el => el.style.display = isDay ? 'none' : '');
+  const val = checked ? checked.value : 'period';
+  const isDay = val === 'day';
+  const isKinder = val === 'kinder';
+  block.querySelectorAll('.period-only').forEach(el => el.style.display = (isDay || isKinder) ? 'none' : '');
   block.querySelectorAll('.day-only').forEach(el => el.style.display = isDay ? '' : 'none');
-  block.querySelector('.class-wrapper').classList.toggle('full', isDay);
+  block.querySelectorAll('.kinder-only').forEach(el => el.style.display = isKinder ? '' : 'none');
+  block.querySelectorAll('.non-kinder').forEach(el => el.style.display = isKinder ? 'none' : '');
+  block.querySelectorAll('.non-kinder-mode').forEach(el => el.style.display = isKinder ? 'none' : '');
+  if (!isKinder) {
+    block.querySelector('.class-wrapper').classList.toggle('full', isDay);
+    // 幼兒園以外的 teacher input 為 f-sub-teacher
+    block.querySelector('.teacher-specify-area input').setAttribute('list', 'teacherList');
+  }
 }
 
 function updateTeacherMode(block) {
@@ -971,6 +980,7 @@ function addItem() {
     <div class="type-row" style="margin-top:10px;">
       <label><input type="radio" name="type-${id}" value="period" checked> 節代</label>
       <label><input type="radio" name="type-${id}" value="day"> 日代</label>
+      <label><input type="radio" name="type-${id}" value="kinder"> 幼兒園</label>
     </div>
 
     <div class="period-only" style="margin-top:6px;">
@@ -978,9 +988,19 @@ function addItem() {
       <input type="text" class="f-period" placeholder="例：136 或 1-5">
     </div>
 
+    <div class="kinder-only" style="display:none;margin-top:6px;">
+      <label class="field-label">代課時段</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="time" class="f-kinder-start" style="flex:1;">
+        <span style="color:var(--muted);">～</span>
+        <input type="time" class="f-kinder-end" style="flex:1;">
+        <span class="f-kinder-hours" style="font-size:0.85rem;color:var(--muted);white-space:nowrap;"></span>
+      </div>
+    </div>
+
     <div class="sub-teacher-block">
       <label class="field-label">代課老師</label>
-      <div class="teacher-mode-row">
+      <div class="teacher-mode-row non-kinder-mode">
         <label><input type="radio" name="tmode-${id}" value="specify" checked> 指定老師</label>
         <label><input type="radio" name="tmode-${id}" value="filter"> 幫我篩選</label>
         <label><input type="radio" name="tmode-${id}" value="homeroom"> 選導師</label>
@@ -998,7 +1018,7 @@ function addItem() {
       <div class="teacher-selected-display" style="display:none;"></div>
     </div>
 
-    <div class="item-grid" style="margin-top:10px;">
+    <div class="item-grid non-kinder" style="margin-top:10px;">
       <div class="class-wrapper">
         <label class="field-label">班級</label>
         <input type="text" class="f-class" placeholder="例：201">
@@ -1010,6 +1030,13 @@ function addItem() {
       <div class="full">
         <label class="field-label">授課教師</label>
         <input type="text" class="f-teacher" placeholder="輸入1個字搜尋…" autocomplete="off" list="instructorList">
+      </div>
+    </div>
+
+    <div class="kinder-only" style="display:none;margin-top:10px;">
+      <div class="full">
+        <label class="field-label">授課教師</label>
+        <input type="text" class="f-teacher-kinder" placeholder="輸入姓名">
       </div>
     </div>
 
@@ -1099,6 +1126,22 @@ function addItem() {
   });
 
   block.querySelector('.filter-btn').addEventListener('click', () => showInlineFilter(block));
+
+  function updateKinderHours() {
+    const s = block.querySelector('.f-kinder-start').value;
+    const e = block.querySelector('.f-kinder-end').value;
+    const display = block.querySelector('.f-kinder-hours');
+    if (s && e) {
+      const [sh, sm] = s.split(':').map(Number);
+      const [eh, em] = e.split(':').map(Number);
+      const mins = (eh * 60 + em) - (sh * 60 + sm);
+      display.textContent = mins > 0 ? `（${(mins/60).toFixed(1)} 小時）` : '';
+    } else {
+      display.textContent = '';
+    }
+  }
+  block.querySelector('.f-kinder-start').addEventListener('input', updateKinderHours);
+  block.querySelector('.f-kinder-end').addEventListener('input', updateKinderHours);
 }
 
 /* ── date / weekday helpers ── */
@@ -1274,10 +1317,45 @@ function getVal(id) {
 function getItems() {
   return Array.from(document.querySelectorAll('#itemList .item-block')).map(block => {
     const checked = block.querySelector('.type-row input[type="radio"]:checked');
-    const isDay = checked && checked.value === 'day';
+    const typeVal = checked ? checked.value : 'period';
+    const isDay = typeVal === 'day';
+    const isKinder = typeVal === 'kinder';
     const periodCountEl = block.querySelector('.f-period-count');
+
+    if (isKinder) {
+      const kinderStart = block.querySelector('.f-kinder-start').value;
+      const kinderEnd = block.querySelector('.f-kinder-end').value;
+      let kinderHours = '';
+      if (kinderStart && kinderEnd) {
+        const [sh, sm] = kinderStart.split(':').map(Number);
+        const [eh, em] = kinderEnd.split(':').map(Number);
+        const mins = (eh * 60 + em) - (sh * 60 + sm);
+        if (mins > 0) kinderHours = (mins / 60).toFixed(1);
+      }
+      const kinderPeriod = kinderStart && kinderEnd ? `${kinderStart}–${kinderEnd}` : '';
+      return {
+        type: 'kinder',
+        unit: '幼兒園',
+        subTeacher: block.querySelector('.f-teacher-kinder').value.trim(),
+        date: block.querySelector('.f-date').value.trim(),
+        weekday: block.querySelector('.f-weekday').value.trim(),
+        period: kinderPeriod,
+        kinderHours: kinderHours,
+        className: '',
+        subject: '',
+        teacher: block.querySelector('.f-teacher-kinder').value.trim(),
+        periodCount: '',
+        dayCount: '',
+        mentorCount: '',
+        leaveType: block.querySelector('.f-leave').value,
+        summary: block.querySelector('.f-summary').value.trim(),
+        note: block.querySelector('.f-note').value.trim()
+      };
+    }
+
     return {
       type: isDay ? 'day' : 'period',
+      unit: '國小',
       subTeacher: block.querySelector('.f-sub-teacher').value.trim(),
       date: block.querySelector('.f-date').value.trim(),
       weekday: block.querySelector('.f-weekday').value.trim(),
@@ -1302,10 +1380,15 @@ function formatItemFields(it) {
     `日期：${formatDateText(it.date)}`,
     `星期：${it.weekday}`
   ];
-  fields.push(it.type === 'day' ? `節次：全天` : `節次：${formatPeriodText(it.period)}`);
-  fields.push(`班級：${it.className}`);
-  if (it.type !== 'day') fields.push(`科目：${formatSubjects(it.subject)}`);
-  fields.push(`授課教師：${teacherText}`);
+  if (it.type === 'kinder') {
+    fields.push(`時段：${it.period || '（未填）'}${it.kinderHours ? '（' + it.kinderHours + ' 小時）' : ''}`);
+    fields.push(`授課教師：${teacherText}`);
+  } else {
+    fields.push(it.type === 'day' ? `節次：全天` : `節次：${formatPeriodText(it.period)}`);
+    fields.push(`班級：${it.className}`);
+    if (it.type !== 'day') fields.push(`科目：${formatSubjects(it.subject)}`);
+    fields.push(`授課教師：${teacherText}`);
+  }
   return fields;
 }
 
@@ -1437,7 +1520,10 @@ function renderPending() {
     const itemRows = groupRows.map(function(row) {
       const rowId = String(row['id'] || '');
       const isDay = String(row['代課類型'] || '') === '日代';
-      const periodCell = isDay ? '日代' : `<span class="editable-period" contenteditable="true" data-id="${rowId}">${row['節次或日代'] || ''}</span>`;
+      const isKinder = String(row['單位'] || '') === '幼兒園';
+      const periodCell = isDay ? '日代' : isKinder
+        ? `${row['節次或日代'] || ''}${row['代課時數'] ? '（' + row['代課時數'] + 'h）' : ''}`
+        : `<span class="editable-period" contenteditable="true" data-id="${rowId}">${row['節次或日代'] || ''}</span>`;
       const displayDate = String(row['日期'] || '')
         .replace(/^\d{4}[\/-](\d{1,2})[\/-](\d{1,2})(?:\s+00:00(?::00)?)?$/, function(_, m, d) {
           return Number(m) + '/' + Number(d);
@@ -1623,19 +1709,22 @@ async function copyMsg() {
   const copyOk = await copyTextContent(text);
   const now = nowStr();
   const rows = items.map(function(it) {
+    const isKinder = it.type === 'kinder';
     return {
       id: generateId(),
       狀態: '已詢問',
       結算月份: settleMonth,
-      代課類型: it.type === 'period' ? '節代' : '日代',
-      代課教師: it.subTeacher ? resolveTeacherName(it.subTeacher) + '老師' : '',
+      單位: it.unit || '國小',
+      代課類型: isKinder ? '幼兒園' : (it.type === 'period' ? '節代' : '日代'),
+      代課教師: it.subTeacher ? (isKinder ? it.subTeacher + '老師' : resolveTeacherName(it.subTeacher) + '老師') : '',
       日期: formatDateText(it.date),
       星期: it.weekday,
-      節次或日代: it.type === 'period' ? formatPeriodText(it.period) : '日代',
+      節次或日代: isKinder ? it.period : (it.type === 'period' ? formatPeriodText(it.period) : '日代'),
       班級: it.className,
-      科目: it.type === 'period' ? formatSubjects(it.subject) : '',
+      科目: isKinder ? '' : (it.type === 'period' ? formatSubjects(it.subject) : ''),
       授課教師: it.teacher ? it.teacher + '老師' : '',
-      代課節數: it.periodCount,
+      代課節數: isKinder ? '' : it.periodCount,
+      代課時數: isKinder ? it.kinderHours : '',
       代課日數: it.dayCount,
       導師日數: it.mentorCount,
       備註: it.note, 假別: it.leaveType, 摘要: it.summary,
@@ -1661,19 +1750,22 @@ async function directAdd() {
   if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
   const now = nowStr();
   const rows = items.map(function(it) {
+    const isKinder = it.type === 'kinder';
     return {
       id: generateId(),
       狀態: '已確認',
       結算月份: settleMonth,
-      代課類型: it.type === 'period' ? '節代' : '日代',
-      代課教師: it.subTeacher ? resolveTeacherName(it.subTeacher) + '老師' : '',
+      單位: it.unit || '國小',
+      代課類型: isKinder ? '幼兒園' : (it.type === 'period' ? '節代' : '日代'),
+      代課教師: it.subTeacher ? (isKinder ? it.subTeacher + '老師' : resolveTeacherName(it.subTeacher) + '老師') : '',
       日期: formatDateText(it.date),
       星期: it.weekday,
-      節次或日代: it.type === 'period' ? formatPeriodText(it.period) : '日代',
+      節次或日代: isKinder ? it.period : (it.type === 'period' ? formatPeriodText(it.period) : '日代'),
       班級: it.className,
-      科目: it.type === 'period' ? formatSubjects(it.subject) : '',
+      科目: isKinder ? '' : (it.type === 'period' ? formatSubjects(it.subject) : ''),
       授課教師: it.teacher ? it.teacher + '老師' : '',
-      代課節數: it.periodCount,
+      代課節數: isKinder ? '' : it.periodCount,
+      代課時數: isKinder ? it.kinderHours : '',
       代課日數: it.dayCount,
       導師日數: it.mentorCount,
       備註: it.note, 假別: it.leaveType, 摘要: it.summary,
@@ -2067,7 +2159,7 @@ function renderList() {
     monthGroups[m].sort((a, b) => String(a['日期'] || '').localeCompare(String(b['日期'] || '')));
   });
 
-  const HIDDEN_COLS = new Set(['結算月份', '建立時間', '更新時間']);
+  const HIDDEN_COLS = new Set(['結算月份', '單位', '建立時間', '更新時間']);
   const VISIBLE_COLS = LIST_COLS.filter(c => !HIDDEN_COLS.has(c));
   const ths = ['操作'].concat(VISIBLE_COLS).map(c => `<th>${c}</th>`).join('');
   const colCount = VISIBLE_COLS.length + 1;
@@ -2416,9 +2508,20 @@ async function generateReport(type) {
     const status = String(r['狀態'] || '').trim();
     return months.includes(r['結算月份']) &&
       r['代課類型'] === type &&
+      String(r['單位'] || '國小') !== '幼兒園' &&
       (status === '已確認' || status === '已完成');
   });
-  if (filtered.length === 0) { showToast('找不到 ' + monthRaw + ' 的' + type + '資料', true); return; }
+  // 幼兒園節代（僅節代表有）
+  const kinderFiltered = type === '節代' ? rows.filter(function(r) {
+    const status = String(r['狀態'] || '').trim();
+    return months.includes(r['結算月份']) &&
+      String(r['單位'] || '') === '幼兒園' &&
+      (status === '已確認' || status === '已完成');
+  }) : [];
+
+  if (filtered.length === 0 && kinderFiltered.length === 0) {
+    showToast('找不到 ' + monthRaw + ' 的' + type + '資料', true); return;
+  }
 
   // 依代課教師分組
   const groups = {};
@@ -2426,6 +2529,12 @@ async function generateReport(type) {
     const n = r['代課教師'] || '（未填）';
     if (!groups[n]) groups[n] = [];
     groups[n].push(r);
+  });
+  const kinderGroups = {};
+  kinderFiltered.forEach(r => {
+    const n = r['代課教師'] || '（未填）';
+    if (!kinderGroups[n]) kinderGroups[n] = [];
+    kinderGroups[n].push(r);
   });
 
   const wb = new ExcelJS.Workbook();
@@ -2544,6 +2653,43 @@ async function generateReport(type) {
         ws.mergeCells(start, 7, end, 7);
       }
     });
+
+    // 幼兒園區塊（排在最下面）
+    if (Object.keys(kinderGroups).length > 0) {
+      // 分隔標題列
+      const sepRow = ws.getRow(rowNum); sepRow.height = 21;
+      const sepCell = sepRow.getCell(1);
+      sepCell.value = '【幼兒園】';
+      sepCell.font = { name: '標楷體', size: 14, bold: true, color: { argb: 'FF7030A0' } };
+      sepCell.alignment = { horizontal: 'left', vertical: 'middle' };
+      ws.mergeCells(rowNum, 1, rowNum, 8);
+      rowNum++;
+
+      Object.keys(kinderGroups).forEach(name => {
+        const tRows = kinderGroups[name];
+        const start = rowNum;
+        const end = rowNum + tRows.length - 1;
+        const totalHours = tRows.reduce((s, r) => s + (Number(r['代課時數']) || 0), 0);
+
+        tRows.forEach((r, idx) => {
+          const row = ws.getRow(rowNum); row.height = 28.5;
+          if (idx === 0) setCell(row, 1, stripTeacher(name));
+          setCell(row, 2, fmtDateShort(r['日期']));
+          setCell(row, 3, stripTeacher(r['授課教師']));
+          setCell(row, 4, r['假別'] || '');
+          setCell(row, 5, r['節次或日代'] || '', fSmall, { horizontal: 'left', vertical: 'middle' });
+          setCell(row, 6, Number(r['代課時數']) || null);
+          if (idx === 0) setCell(row, 7, totalHours > 0 ? totalHours : null);
+          setCell(row, 8, r['備註'] || null);
+          rowNum++;
+        });
+
+        if (tRows.length > 1) {
+          ws.mergeCells(start, 1, end, 1);
+          ws.mergeCells(start, 7, end, 7);
+        }
+      });
+    }
   }
 
   const buffer = await wb.xlsx.writeBuffer();
