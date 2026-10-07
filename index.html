@@ -2463,6 +2463,19 @@ function getTeacherInfo(name) {
   return found || {};
 }
 
+function isKinderRow(r) {
+  return String(r['單位'] || '') === '幼兒園' || String(r['代課類型'] || '') === '幼兒園';
+}
+
+function kinderHoursOf(r) {
+  const v = Number(r['代課時數']);
+  if (v) return v;
+  const m = String(r['節次或日代'] || '').match(/(\d{1,2}):(\d{2})\s*[–\-~]\s*(\d{1,2}):(\d{2})/);
+  if (!m) return 0;
+  const mins = (Number(m[3]) * 60 + Number(m[4])) - (Number(m[1]) * 60 + Number(m[2]));
+  return mins > 0 ? Math.round(mins / 6) / 10 : 0;
+}
+
 async function fetchAllRows() {
   if (!gasUrl) { showToast('請先設定 Web App URL', true); return null; }
   const res = await fetch(gasUrl + '?action=get', { redirect: 'follow' });
@@ -2508,14 +2521,14 @@ async function generateReport(type) {
     const status = String(r['狀態'] || '').trim();
     return months.includes(r['結算月份']) &&
       r['代課類型'] === type &&
-      String(r['單位'] || '國小') !== '幼兒園' &&
+      !isKinderRow(r) &&
       (status === '已確認' || status === '已完成');
   });
   // 幼兒園節代（僅節代表有）
   const kinderFiltered = type === '節代' ? rows.filter(function(r) {
     const status = String(r['狀態'] || '').trim();
     return months.includes(r['結算月份']) &&
-      String(r['單位'] || '') === '幼兒園' &&
+      isKinderRow(r) &&
       (status === '已確認' || status === '已完成');
   }) : [];
 
@@ -2669,18 +2682,23 @@ async function generateReport(type) {
         const tRows = kinderGroups[name];
         const start = rowNum;
         const end = rowNum + tRows.length - 1;
-        const totalHours = tRows.reduce((s, r) => s + (Number(r['代課時數']) || 0), 0);
+        const totalHours = tRows.reduce((s, r) => s + kinderHoursOf(r), 0);
 
+        const kinderFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
         tRows.forEach((r, idx) => {
           const row = ws.getRow(rowNum); row.height = 28.5;
           if (idx === 0) setCell(row, 1, stripTeacher(name));
           setCell(row, 2, fmtDateShort(r['日期']));
           setCell(row, 3, stripTeacher(r['授課教師']));
           setCell(row, 4, r['假別'] || '');
-          setCell(row, 5, r['節次或日代'] || '', fSmall, { horizontal: 'left', vertical: 'middle' });
-          setCell(row, 6, Number(r['代課時數']) || null);
+          const kinderPeriod = r['節次或日代'] || '';
+          const kinderSummary = r['摘要'] || '';
+          const kinderCell5 = [kinderPeriod, kinderSummary].filter(Boolean).join('　');
+          setCell(row, 5, kinderCell5 || null, fSmall, { horizontal: 'left', vertical: 'middle' });
+          setCell(row, 6, kinderHoursOf(r) || null);
           if (idx === 0) setCell(row, 7, totalHours > 0 ? totalHours : null);
           setCell(row, 8, r['備註'] || null);
+          for (let c = 1; c <= 8; c++) row.getCell(c).fill = kinderFill;
           rowNum++;
         });
 
@@ -2793,6 +2811,10 @@ function renderCalendarMonthBlock(ws, rowNum, month, filtered) {
         const sub  = String(r['代課教師'] || '').replace(/老師$/, '');
         const orig = String(r['授課教師'] || '').replace(/老師$/, '');
         const type = r['代課類型'];
+        if (isKinderRow(r)) {
+          const hrs = kinderHoursOf(r);
+          return sub + '代\n(' + (orig && orig !== sub ? orig : '') + '幼兒園' + (hrs ? hrs + '小時' : String(r['節次或日代'] || '')) + ')';
+        }
         const periods = type === '日代' ? '1日' : (String(r['代課節數'] || '') + '節');
         return sub + '代\n(' + orig + periods + ')';
       }).join('\n');
