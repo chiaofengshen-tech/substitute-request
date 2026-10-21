@@ -163,6 +163,7 @@
             <th>請假老師</th>
             <th>代課老師</th>
             <th>節次／時段</th>
+            <th>單位</th>
             <th>假別</th>
             <th>摘要</th>
           </tr>
@@ -253,7 +254,7 @@ function renderTable(rows) {
     const kinder = isKinder(row);
     if (kinder && lastKinder === false) {
       const sep = document.createElement('tr');
-      sep.innerHTML = '<td colspan="7" class="section-header">【幼兒園】</td>';
+      sep.innerHTML = '<td colspan="8" class="section-header">【幼兒園】</td>';
       tbody.appendChild(sep);
     }
     lastKinder = kinder;
@@ -266,6 +267,7 @@ function renderTable(rows) {
     const period = String(row['節次或日代'] || '');
     const leaveVal = String(row['假別'] || '');
     const summaryVal = String(row['摘要'] || '');
+    const unitVal = String(row['單位'] || '國小');
 
     tr.innerHTML = `
       <td class="readonly">${fmtDate(row['日期'])}</td>
@@ -273,6 +275,12 @@ function renderTable(rows) {
       <td class="readonly">${String(row['授課教師'] || '').replace(/老師$/, '')}</td>
       <td class="readonly">${String(row['代課教師'] || '').replace(/老師$/, '')}</td>
       <td class="readonly">${period}</td>
+      <td>
+        <select class="f-unit" data-id="${id}">
+          <option value="國小" ${unitVal !== '幼兒園' ? 'selected' : ''}>國小</option>
+          <option value="幼兒園" ${unitVal === '幼兒園' ? 'selected' : ''}>幼兒園</option>
+        </select>
+      </td>
       <td>
         <select class="f-leave" data-id="${id}">
           ${LEAVE_OPTIONS.map(o => `<option value="${o}" ${o === leaveVal ? 'selected' : ''}>${o || '（未填）'}</option>`).join('')}
@@ -283,9 +291,13 @@ function renderTable(rows) {
       </td>
     `;
 
+    tr.querySelector('.f-unit').addEventListener('change', function() {
+      changedIds.add(this.dataset.id);
+      this.closest('tr').classList.add('changed');
+    });
     tr.querySelector('.f-leave').addEventListener('change', function() {
       changedIds.add(this.dataset.id);
-      this.closest('tr').querySelector('td:nth-child(6)').classList.add('changed');
+      this.closest('tr').classList.add('changed');
     });
     tr.querySelector('.f-summary').addEventListener('input', function() {
       changedIds.add(this.dataset.id);
@@ -307,12 +319,13 @@ async function saveAll() {
   for (const id of changedIds) {
     const tr = document.querySelector(`tr[data-id="${id}"]`);
     if (!tr) continue;
+    const unit = tr.querySelector('.f-unit').value;
     const leave = tr.querySelector('.f-leave').value;
     const summary = tr.querySelector('.f-summary').value.trim();
     try {
       const res = await fetch(gasUrl, {
         method: 'POST',
-        body: JSON.stringify({ action: 'update', id, changes: { 假別: leave, 摘要: summary, 更新時間: new Date().toLocaleString('zh-TW') } }),
+        body: JSON.stringify({ action: 'update', id, changes: { 單位: unit, 假別: leave, 摘要: summary, 更新時間: new Date().toLocaleString('zh-TW') } }),
         redirect: 'follow'
       });
       const json = await res.json();
