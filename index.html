@@ -2027,9 +2027,13 @@ async function cancelAndRefind(row, options) {
   const block = document.querySelector('#itemList .item-block');
   if (!block) return;
 
-  // 設定節代/日代
+  // 設定節代/日代/幼兒園
+  const isKinder = isKinderRow(row);
   const typeRadios = block.querySelectorAll('.type-row input[type="radio"]');
-  typeRadios.forEach(r => { r.checked = r.value === (isDay ? 'day' : 'period'); });
+  typeRadios.forEach(r => {
+    if (isKinder) r.checked = r.value === 'kinder';
+    else r.checked = r.value === (isDay ? 'day' : 'period');
+  });
   updateTypeVisibility(block);
 
   // 填入欄位
@@ -2040,14 +2044,31 @@ async function cancelAndRefind(row, options) {
   weekdayInput.value = guess || '';
   weekdayDisplay.textContent = guess ? `（${guess}）` : '';
 
-  if (!isDay) block.querySelector('.f-period').value = periodRaw;
-  block.querySelector('.f-class').value = String(row['班級'] || '');
-  block.querySelector('.f-subject').value = String(row['科目'] || '');
-  block.querySelector('.f-teacher').value = teacherVal;
+  if (isKinder) {
+    // 幼兒園：填授課教師和時段
+    const kinderTeacherEl = block.querySelector('.f-teacher-kinder');
+    if (kinderTeacherEl) kinderTeacherEl.value = teacherVal;
+    const periodStr = String(row['節次或日代'] || '');
+    const timeMatch = periodStr.match(/(\d{1,2}:\d{2})[–\-~](\d{1,2}:\d{2})/);
+    if (timeMatch) {
+      const startEl = block.querySelector('.f-kinder-start');
+      const endEl = block.querySelector('.f-kinder-end');
+      if (startEl) startEl.value = timeMatch[1];
+      if (endEl) endEl.value = timeMatch[2];
+    }
+  } else if (!isDay) {
+    block.querySelector('.f-period').value = periodRaw;
+    block.querySelector('.f-class').value = String(row['班級'] || '');
+    block.querySelector('.f-subject').value = String(row['科目'] || '');
+    block.querySelector('.f-teacher').value = teacherVal;
+  } else {
+    block.querySelector('.f-class').value = String(row['班級'] || '');
+    block.querySelector('.f-teacher').value = teacherVal;
+  }
 
   const periodCountEl = block.querySelector('.f-period-count');
   if (periodCountEl) periodCountEl.value = String(row['代課節數'] || '');
-  if (isDay) {
+  if (isDay && !isKinder) {
     const dc = block.querySelector('.f-day-count');
     const mc = block.querySelector('.f-mentor-count');
     if (dc) dc.value = String(row['代課日數'] || '1');
