@@ -2698,7 +2698,7 @@ async function generateReport(type) {
     const signRowD = ws.getRow(rowNum); signRowD.height = 42;
     const signCellD = signRowD.getCell(1);
     signCellD.value = '教學組長：                    教務主任：                    人事主任：';
-    signCellD.font = fData;
+    signCellD.font = { name: '標楷體', size: 14, bold: true };
     signCellD.alignment = { horizontal: 'left', vertical: 'bottom' };
     ws.mergeCells(rowNum, 1, rowNum, 12);
 
@@ -2746,15 +2746,16 @@ async function generateReport(type) {
     // 總計列
     const totalAllPeriods = filtered.reduce((s, r) => s + (Number(r['代課節數']) || 0), 0);
     const totalRow = ws.getRow(rowNum); totalRow.height = 28.5;
+    const totalFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
     const tcLabel = totalRow.getCell(1);
     tcLabel.value = '總計';
-    tcLabel.font = fTitle; tcLabel.alignment = aC; tcLabel.border = allBorder;
+    tcLabel.font = fTitle; tcLabel.alignment = aC; tcLabel.border = allBorder; tcLabel.fill = totalFill;
     ws.mergeCells(rowNum, 1, rowNum, 6);
     const tcVal = totalRow.getCell(7);
     tcVal.value = totalAllPeriods;
-    tcVal.font = fTitle; tcVal.alignment = aC; tcVal.border = allBorder;
+    tcVal.font = fTitle; tcVal.alignment = aC; tcVal.border = allBorder; tcVal.fill = totalFill;
     const tcBlank = totalRow.getCell(8);
-    tcBlank.border = allBorder;
+    tcBlank.border = allBorder; tcBlank.fill = totalFill;
     rowNum++;
 
     // 幼兒園區塊（排在最下面）
@@ -2802,7 +2803,7 @@ async function generateReport(type) {
     const signRow = ws.getRow(rowNum); signRow.height = 42;
     const signCell = signRow.getCell(1);
     signCell.value = '教學組長：                    教務主任：                    人事主任：';
-    signCell.font = fData;
+    signCell.font = { name: '標楷體', size: 14, bold: true };
     signCell.alignment = { horizontal: 'left', vertical: 'bottom' };
     ws.mergeCells(rowNum, 1, rowNum, 8);
   }
