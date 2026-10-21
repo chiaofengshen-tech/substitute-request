@@ -760,6 +760,7 @@
         <button class="btn-success" id="genDayBtn">下載日代一覽表</button>
         <button class="btn-secondary" id="genCalendarBtn">📅 下載代課紀錄單</button>
         <button class="btn-secondary" id="genDetailBtn">📋 回兼明細</button>
+        <a href="edit-summary.html" class="btn-secondary" style="display:inline-block;text-decoration:none;text-align:center;">✏️ 編輯摘要</a>
         <button class="btn-secondary" id="archiveBtn">📦 封存本月資料</button>
       </div>
     </div>
@@ -2464,7 +2465,8 @@ function getTeacherInfo(name) {
 }
 
 function isKinderRow(r) {
-  return String(r['單位'] || '') === '幼兒園' || String(r['代課類型'] || '') === '幼兒園';
+  return String(r['單位'] || '') === '幼兒園' || String(r['代課類型'] || '') === '幼兒園' ||
+    /\d{1,2}:\d{2}\s*[–\-~]\s*\d{1,2}:\d{2}/.test(String(r['節次或日代'] || ''));
 }
 
 function kinderHoursOf(r) {
@@ -2524,13 +2526,13 @@ async function generateReport(type) {
       !isKinderRow(r) &&
       (status === '已確認' || status === '已完成');
   });
-  // 幼兒園節代（僅節代表有）
-  const kinderFiltered = type === '節代' ? rows.filter(function(r) {
+  // 幼兒園（節代和日代都分開）
+  const kinderFiltered = rows.filter(function(r) {
     const status = String(r['狀態'] || '').trim();
     return months.includes(r['結算月份']) &&
       isKinderRow(r) &&
       (status === '已確認' || status === '已完成');
-  }) : [];
+  });
 
   if (filtered.length === 0 && kinderFiltered.length === 0) {
     showToast('找不到 ' + monthRaw + ' 的' + type + '資料', true); return;
@@ -2625,6 +2627,46 @@ async function generateReport(type) {
         ws.mergeCells(start, 12, end, 12);
       }
     });
+
+    // 幼兒園區塊（日代）
+    if (Object.keys(kinderGroups).length > 0) {
+      const sepRow = ws.getRow(rowNum); sepRow.height = 21;
+      const sepCell = sepRow.getCell(1);
+      sepCell.value = '【幼兒園】';
+      sepCell.font = { name: '標楷體', size: 14, bold: true, color: { argb: 'FF7030A0' } };
+      sepCell.alignment = { horizontal: 'left', vertical: 'middle' };
+      ws.mergeCells(rowNum, 1, rowNum, 12);
+      rowNum++;
+
+      const kinderFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+      Object.keys(kinderGroups).forEach(name => {
+        const tRows = kinderGroups[name];
+        const start = rowNum;
+        const end = rowNum + tRows.length - 1;
+        const totalHours = tRows.reduce((s, r) => s + kinderHoursOf(r), 0);
+
+        tRows.forEach((r, idx) => {
+          const row = ws.getRow(rowNum); row.height = 28.5;
+          if (idx === 0) setCell(row, 1, stripTeacher(name));
+          setCell(row, 2, fmtDateShort(r['日期']));
+          setCell(row, 3, stripTeacher(r['授課教師']));
+          setCell(row, 4, r['假別'] || '', fData, aCW);
+          const kinderPeriod = r['節次或日代'] || '';
+          const kinderSummary = r['摘要'] || '';
+          setCell(row, 5, [kinderPeriod, kinderSummary].filter(Boolean).join('　') || null, fSmall, aL);
+          setCell(row, 6, Number(r['代課日數']) || null);
+          setCell(row, 7, Number(r['導師日數']) || null);
+          if (idx === 0) setCell(row, 8, tRows.reduce((s, r2) => s + (Number(r2['代課日數']) || 0), 0) || null);
+          for (let c = 1; c <= 12; c++) row.getCell(c).fill = kinderFill;
+          rowNum++;
+        });
+
+        if (tRows.length > 1) {
+          ws.mergeCells(start, 1, end, 1);
+          ws.mergeCells(start, 8, end, 8);
+        }
+      });
+    }
 
   } else {
     // 節代

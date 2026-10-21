@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>編輯摘要與假別</title>
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --card: #fffdf9;
+    --blue: #c5a47e;
+    --blue-dark: #8b6d4d;
+    --text: #4a4036;
+    --border: #ded1c1;
+    --muted: #948576;
+    --success: #819b78;
+    --error: #c7766f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-align: center;
+    margin: 10px 0 18px;
+    color: var(--blue-dark);
+  }
+  .card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 16px;
+  }
+  .top-bar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  input[type="text"], select, textarea {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.95rem;
+    color: var(--text);
+    background: white;
+    font-family: inherit;
+  }
+  input[type="text"]:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--blue);
+  }
+  .btn {
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-primary {
+    background: var(--blue-dark);
+    color: white;
+  }
+  .btn-primary:disabled { opacity: 0.5; cursor: default; }
+  .btn-save {
+    background: var(--success);
+    color: white;
+  }
+  .btn-back {
+    background: var(--card);
+    color: var(--blue-dark);
+    border: 1px solid var(--border);
+    text-decoration: none;
+    display: inline-block;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  th {
+    background: #f0e8da;
+    color: var(--blue-dark);
+    font-weight: 600;
+    padding: 8px 10px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  td {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fdf8f2; }
+  .f-summary {
+    width: 100%;
+    min-width: 200px;
+    resize: none;
+    height: 38px;
+    line-height: 1.4;
+    padding: 6px 10px;
+  }
+  .f-leave {
+    min-width: 110px;
+  }
+  .readonly { color: var(--muted); }
+  .kinder-row td { background: #f0f0f0; }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #4a4036; color: white;
+    padding: 10px 20px; border-radius: 10px;
+    font-size: 0.9rem; opacity: 0; transition: opacity 0.2s;
+    pointer-events: none; z-index: 999;
+  }
+  .toast.show { opacity: 1; }
+  .toast.error { background: var(--error); }
+  .empty { text-align: center; color: var(--muted); padding: 30px; }
+  .section-header {
+    background: #e8ddd0;
+    font-weight: 700;
+    color: var(--blue-dark);
+    font-size: 0.82rem;
+    padding: 5px 10px;
+  }
+  .month-input { width: 140px; }
+  .table-wrap { overflow-x: auto; }
+  .changed { background: #fffbe6 !important; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>✏️ 編輯摘要與假別</h1>
+
+  <div class="card">
+    <div class="top-bar">
+      <a href="index.html" class="btn btn-back">← 返回</a>
+      <input type="text" id="monthInput" class="month-input" placeholder="例：115年10月">
+      <button class="btn btn-primary" id="loadBtn">載入</button>
+      <button class="btn btn-save" id="saveBtn" style="display:none;">💾 儲存全部修改</button>
+      <span id="statusMsg" style="font-size:0.85rem;color:var(--muted);"></span>
+    </div>
+  </div>
+
+  <div class="card" id="tableCard" style="display:none;">
+    <div class="table-wrap">
+      <table id="editTable">
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>星期</th>
+            <th>請假老師</th>
+            <th>代課老師</th>
+            <th>節次／時段</th>
+            <th>假別</th>
+            <th>摘要</th>
+          </tr>
+        </thead>
+        <tbody id="editBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const GAS_URL_KEY = 'gasWebAppUrl';
+const LEAVE_OPTIONS = ['','公假','事假','病假','身心調適假'];
+
+let gasUrl = localStorage.getItem(GAS_URL_KEY) || '';
+let loadedRows = [];
+let changedIds = new Set();
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), isError ? 2500 : 1800);
+}
+
+function fmtDate(raw) {
+  const m = String(raw || '').match(/(?:\d{4}\/)?(\d{1,2})\/(\d{1,2})/);
+  return m ? m[1] + '/' + m[2] : raw || '';
+}
+
+function isKinder(row) {
+  return String(row['單位'] || '') === '幼兒園' || String(row['代課類型'] || '') === '幼兒園';
+}
+
+async function loadData() {
+  const month = document.getElementById('monthInput').value.trim();
+  if (!month) { showToast('請填寫月份', true); return; }
+  if (!gasUrl) { showToast('請先在主頁面設定 Web App URL', true); return; }
+
+  document.getElementById('statusMsg').textContent = '載入中…';
+  document.getElementById('loadBtn').disabled = true;
+
+  try {
+    const res = await fetch(gasUrl + '?action=get', { redirect: 'follow' });
+    const json = await res.json();
+    const rows = (json.rows || []).filter(r => {
+      const status = String(r['狀態'] || '').trim();
+      return r['結算月份'] === month && (status === '已確認' || status === '已完成');
+    });
+
+    if (rows.length === 0) {
+      showToast('找不到 ' + month + ' 的已確認資料', true);
+      document.getElementById('statusMsg').textContent = '';
+      return;
+    }
+
+    // 排序：幼兒園排後面，同單位內依日期
+    rows.sort((a, b) => {
+      const ak = (isKinder(a) ? 1 : 0);
+      const bk = (isKinder(b) ? 1 : 0);
+      if (ak !== bk) return ak - bk;
+      return String(a['日期'] || '').localeCompare(String(b['日期'] || ''));
+    });
+
+    loadedRows = rows;
+    changedIds.clear();
+    renderTable(rows);
+    document.getElementById('tableCard').style.display = '';
+    document.getElementById('saveBtn').style.display = '';
+    document.getElementById('statusMsg').textContent = `共 ${rows.length} 筆`;
+  } catch(e) {
+    showToast('載入失敗：' + e.message, true);
+    document.getElementById('statusMsg').textContent = '';
+  } finally {
+    document.getElementById('loadBtn').disabled = false;
+  }
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById('editBody');
+  tbody.innerHTML = '';
+
+  let lastKinder = null;
+  rows.forEach(row => {
+    const kinder = isKinder(row);
+    if (kinder && lastKinder === false) {
+      const sep = document.createElement('tr');
+      sep.innerHTML = '<td colspan="7" class="section-header">【幼兒園】</td>';
+      tbody.appendChild(sep);
+    }
+    lastKinder = kinder;
+
+    const id = String(row['id'] || '');
+    const tr = document.createElement('tr');
+    if (kinder) tr.className = 'kinder-row';
+    tr.dataset.id = id;
+
+    const period = String(row['節次或日代'] || '');
+    const leaveVal = String(row['假別'] || '');
+    const summaryVal = String(row['摘要'] || '');
+
+    tr.innerHTML = `
+      <td class="readonly">${fmtDate(row['日期'])}</td>
+      <td class="readonly">${row['星期'] || ''}</td>
+      <td class="readonly">${String(row['授課教師'] || '').replace(/老師$/, '')}</td>
+      <td class="readonly">${String(row['代課教師'] || '').replace(/老師$/, '')}</td>
+      <td class="readonly">${period}</td>
+      <td>
+        <select class="f-leave" data-id="${id}">
+          ${LEAVE_OPTIONS.map(o => `<option value="${o}" ${o === leaveVal ? 'selected' : ''}>${o || '（未填）'}</option>`).join('')}
+        </select>
+      </td>
+      <td>
+        <textarea class="f-summary" data-id="${id}" rows="1">${summaryVal}</textarea>
+      </td>
+    `;
+
+    tr.querySelector('.f-leave').addEventListener('change', function() {
+      changedIds.add(this.dataset.id);
+      this.closest('tr').querySelector('td:nth-child(6)').classList.add('changed');
+    });
+    tr.querySelector('.f-summary').addEventListener('input', function() {
+      changedIds.add(this.dataset.id);
+      this.closest('tr').classList.add('changed');
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+async function saveAll() {
+  if (changedIds.size === 0) { showToast('沒有修改的項目'); return; }
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = '儲存中…';
+
+  let ok = 0, fail = 0;
+  for (const id of changedIds) {
+    const tr = document.querySelector(`tr[data-id="${id}"]`);
+    if (!tr) continue;
+    const leave = tr.querySelector('.f-leave').value;
+    const summary = tr.querySelector('.f-summary').value.trim();
+    try {
+      const res = await fetch(gasUrl, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'update', id, changes: { 假別: leave, 摘要: summary, 更新時間: new Date().toLocaleString('zh-TW') } }),
+        redirect: 'follow'
+      });
+      const json = await res.json();
+      if (json.ok) { ok++; tr.classList.remove('changed'); }
+      else fail++;
+    } catch(e) { fail++; }
+  }
+
+  changedIds.clear();
+  btn.disabled = false;
+  btn.textContent = '💾 儲存全部修改';
+
+  if (fail === 0) showToast(`已儲存 ${ok} 筆 ✓`);
+  else showToast(`${ok} 筆成功，${fail} 筆失敗`, fail > 0);
+}
+
+document.getElementById('loadBtn').addEventListener('click', loadData);
+document.getElementById('saveBtn').addEventListener('click', saveAll);
+document.getElementById('monthInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') loadData();
+});
+
+// 帶入上次月份
+const lastMonth = localStorage.getItem('lastReportMonth') || '';
+if (lastMonth) document.getElementById('monthInput').value = lastMonth;
+</script>
+</body>
+</html>
