@@ -2532,6 +2532,7 @@ function buildTitle(month, type) {
 }
 
 async function generateReport(type) {
+  try {
   const monthRaw = document.getElementById('reportMonth').value.trim();
   if (!monthRaw) { showToast('請先填寫結算月份', true); return; }
   showToast('產生中…');
@@ -2809,6 +2810,10 @@ async function generateReport(type) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast('已下載 ' + monthRaw.replace(/[+＋、,，]/g, '') + type + '代課一覽表.xlsx');
+  } catch(err) {
+    showToast('下載失敗：' + err.message, true);
+    console.error('generateReport error:', err);
+  }
 }
 
 document.getElementById('genPeriodBtn').addEventListener('click', function() { generateReport('節代'); });
