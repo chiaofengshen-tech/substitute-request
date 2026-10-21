@@ -2747,6 +2747,7 @@ async function generateReport(type) {
     signCellD.font = { name: '標楷體', size: 14, bold: true };
     signCellD.alignment = { horizontal: 'left', vertical: 'bottom' };
     ws.mergeCells(rowNum, 1, rowNum, 12);
+    ws.pageSetup.printArea = `A1:L${rowNum}`;
 
   } else {
     // 節代
@@ -2852,6 +2853,8 @@ async function generateReport(type) {
     signCell.font = { name: '標楷體', size: 14, bold: true };
     signCell.alignment = { horizontal: 'left', vertical: 'bottom' };
     ws.mergeCells(rowNum, 1, rowNum, 8);
+    const colCount2 = type === '日代' ? 12 : 8;
+    ws.pageSetup.printArea = `A1:${String.fromCharCode(64 + colCount2)}${rowNum}`;
   }
 
   const buffer = await wb.xlsx.writeBuffer();
