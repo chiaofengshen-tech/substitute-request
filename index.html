@@ -2694,6 +2694,14 @@ async function generateReport(type) {
       });
     }
 
+    // 簽名列（日代）
+    const signRowD = ws.getRow(rowNum); signRowD.height = 42;
+    const signCellD = signRowD.getCell(1);
+    signCellD.value = '教學組長：                    教務主任：                    人事主任：';
+    signCellD.font = fData;
+    signCellD.alignment = { horizontal: 'left', vertical: 'bottom' };
+    ws.mergeCells(rowNum, 1, rowNum, 12);
+
   } else {
     // 節代
     ws.columns = [
@@ -2790,16 +2798,14 @@ async function generateReport(type) {
         }
       });
     }
+    // 簽名列
+    const signRow = ws.getRow(rowNum); signRow.height = 42;
+    const signCell = signRow.getCell(1);
+    signCell.value = '教學組長：                    教務主任：                    人事主任：';
+    signCell.font = fData;
+    signCell.alignment = { horizontal: 'left', vertical: 'bottom' };
+    ws.mergeCells(rowNum, 1, rowNum, 8);
   }
-
-  // 簽名列
-  const signRow = ws.getRow(rowNum); signRow.height = 42;
-  const signCell = signRow.getCell(1);
-  const colCount = type === '日代' ? 12 : 8;
-  signCell.value = '教學組長：                    教務主任：                    人事主任：';
-  signCell.font = fData;
-  signCell.alignment = { horizontal: 'left', vertical: 'bottom' };
-  ws.mergeCells(rowNum, 1, rowNum, colCount);
 
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
