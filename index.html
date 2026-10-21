@@ -990,12 +990,23 @@ function addItem() {
     </div>
 
     <div class="kinder-only" style="display:none;margin-top:6px;">
-      <label class="field-label">代課時段</label>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <input type="time" class="f-kinder-start" style="flex:1;">
-        <span style="color:var(--muted);">～</span>
-        <input type="time" class="f-kinder-end" style="flex:1;">
-        <span class="f-kinder-hours" style="font-size:0.85rem;color:var(--muted);white-space:nowrap;"></span>
+      <label class="field-label">代課方式</label>
+      <div style="display:flex;gap:16px;margin-bottom:8px;">
+        <label><input type="radio" name="kmode-${id}" value="hours" checked> 計時數</label>
+        <label><input type="radio" name="kmode-${id}" value="allday"> 全天（日代）</label>
+      </div>
+      <div class="kinder-time-area">
+        <label class="field-label">代課時段</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="time" class="f-kinder-start" style="flex:1;">
+          <span style="color:var(--muted);">～</span>
+          <input type="time" class="f-kinder-end" style="flex:1;">
+          <span class="f-kinder-hours" style="font-size:0.85rem;color:var(--muted);white-space:nowrap;"></span>
+        </div>
+      </div>
+      <div class="kinder-day-area" style="display:none;">
+        <label class="field-label">代課日數</label>
+        <input type="number" class="f-kinder-day-count" value="1" min="1" style="width:80px;">
       </div>
     </div>
 
@@ -1143,6 +1154,14 @@ function addItem() {
   }
   block.querySelector('.f-kinder-start').addEventListener('input', updateKinderHours);
   block.querySelector('.f-kinder-end').addEventListener('input', updateKinderHours);
+
+  block.querySelectorAll(`input[name="kmode-${id}"]`).forEach(r => {
+    r.addEventListener('change', () => {
+      const isAllDay = block.querySelector(`input[name="kmode-${id}"]:checked`).value === 'allday';
+      block.querySelector('.kinder-time-area').style.display = isAllDay ? 'none' : '';
+      block.querySelector('.kinder-day-area').style.display = isAllDay ? '' : 'none';
+    });
+  });
 }
 
 /* ── date / weekday helpers ── */
@@ -1324,29 +1343,36 @@ function getItems() {
     const periodCountEl = block.querySelector('.f-period-count');
 
     if (isKinder) {
+      const kmodeEl = block.querySelector(`input[name^="kmode-"]:checked`);
+      const isAllDay = kmodeEl && kmodeEl.value === 'allday';
       const kinderStart = block.querySelector('.f-kinder-start').value;
       const kinderEnd = block.querySelector('.f-kinder-end').value;
       let kinderHours = '';
-      if (kinderStart && kinderEnd) {
-        const [sh, sm] = kinderStart.split(':').map(Number);
-        const [eh, em] = kinderEnd.split(':').map(Number);
-        const mins = (eh * 60 + em) - (sh * 60 + sm);
-        if (mins > 0) kinderHours = (mins / 60).toFixed(1);
+      let kinderPeriod = '';
+      if (!isAllDay) {
+        if (kinderStart && kinderEnd) {
+          const [sh, sm] = kinderStart.split(':').map(Number);
+          const [eh, em] = kinderEnd.split(':').map(Number);
+          const mins = (eh * 60 + em) - (sh * 60 + sm);
+          if (mins > 0) kinderHours = (mins / 60).toFixed(1);
+        }
+        kinderPeriod = kinderStart && kinderEnd ? `${kinderStart}–${kinderEnd}` : '';
       }
-      const kinderPeriod = kinderStart && kinderEnd ? `${kinderStart}–${kinderEnd}` : '';
+      const kinderDayCount = isAllDay ? (block.querySelector('.f-kinder-day-count').value.trim() || '1') : '';
       return {
         type: 'kinder',
+        kinderAllDay: isAllDay,
         unit: '幼兒園',
         subTeacher: block.querySelector('.f-teacher-kinder').value.trim(),
         date: block.querySelector('.f-date').value.trim(),
         weekday: block.querySelector('.f-weekday').value.trim(),
-        period: kinderPeriod,
-        kinderHours: kinderHours,
+        period: isAllDay ? '日代' : kinderPeriod,
+        kinderHours: isAllDay ? '' : kinderHours,
         className: '',
         subject: '',
         teacher: block.querySelector('.f-teacher-kinder').value.trim(),
         periodCount: '',
-        dayCount: '',
+        dayCount: kinderDayCount,
         mentorCount: '',
         leaveType: block.querySelector('.f-leave').value,
         summary: block.querySelector('.f-summary').value.trim(),
@@ -1716,7 +1742,7 @@ async function copyMsg() {
       狀態: '已詢問',
       結算月份: settleMonth,
       單位: it.unit || '國小',
-      代課類型: isKinder ? '幼兒園' : (it.type === 'period' ? '節代' : '日代'),
+      代課類型: isKinder ? (it.kinderAllDay ? '日代' : '幼兒園') : (it.type === 'period' ? '節代' : '日代'),
       代課教師: it.subTeacher ? (isKinder ? it.subTeacher + '老師' : resolveTeacherName(it.subTeacher) + '老師') : '',
       日期: formatDateText(it.date),
       星期: it.weekday,
@@ -1726,7 +1752,7 @@ async function copyMsg() {
       授課教師: it.teacher ? it.teacher + '老師' : '',
       代課節數: isKinder ? '' : it.periodCount,
       代課時數: isKinder ? it.kinderHours : '',
-      代課日數: it.dayCount,
+      代課日數: isKinder ? it.dayCount : (it.type === 'day' ? it.dayCount : ''),
       導師日數: it.mentorCount,
       備註: it.note, 假別: it.leaveType, 摘要: it.summary,
       建立時間: now, 更新時間: now
@@ -1757,7 +1783,7 @@ async function directAdd() {
       狀態: '已確認',
       結算月份: settleMonth,
       單位: it.unit || '國小',
-      代課類型: isKinder ? '幼兒園' : (it.type === 'period' ? '節代' : '日代'),
+      代課類型: isKinder ? (it.kinderAllDay ? '日代' : '幼兒園') : (it.type === 'period' ? '節代' : '日代'),
       代課教師: it.subTeacher ? (isKinder ? it.subTeacher + '老師' : resolveTeacherName(it.subTeacher) + '老師') : '',
       日期: formatDateText(it.date),
       星期: it.weekday,
@@ -1767,7 +1793,7 @@ async function directAdd() {
       授課教師: it.teacher ? it.teacher + '老師' : '',
       代課節數: isKinder ? '' : it.periodCount,
       代課時數: isKinder ? it.kinderHours : '',
-      代課日數: it.dayCount,
+      代課日數: isKinder ? it.dayCount : (it.type === 'day' ? it.dayCount : ''),
       導師日數: it.mentorCount,
       備註: it.note, 假別: it.leaveType, 摘要: it.summary,
       建立時間: now, 更新時間: now
