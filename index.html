@@ -2625,6 +2625,7 @@ async function generateReport(type) {
 
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet(type + '一覽表');
+  ws.views = [{ showGridLines: false }];
 
   const PURPLE = 'FF7030A0';
   const thin = { style: 'thin' };
