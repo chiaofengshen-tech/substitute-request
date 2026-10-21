@@ -1873,9 +1873,10 @@ async function permanentlyDeleteRow(id) {
 
 /* ── edit a confirmed row without creating a duplicate ── */
 function editConfirmedRow(row) {
-  const isDay = String(row['代課類型'] || '') === '日代';
+  const isKinder = isKinderRow(row);
+  const isDay = !isKinder && String(row['代課類型'] || '') === '日代';
   let periodRaw = '';
-  if (!isDay) {
+  if (!isDay && !isKinder) {
     periodRaw = String(row['節次或日代'] || '')
       .replace(/第/g, '').replace(/節/g, '').replace(/、/g, ',').trim();
   }
@@ -1891,7 +1892,8 @@ function editConfirmedRow(row) {
   if (!block) return;
 
   block.querySelectorAll('.type-row input[type="radio"]').forEach(function(radio) {
-    radio.checked = radio.value === (isDay ? 'day' : 'period');
+    if (isKinder) radio.checked = radio.value === 'kinder';
+    else radio.checked = radio.value === (isDay ? 'day' : 'period');
   });
   updateTypeVisibility(block);
 
@@ -1899,11 +1901,29 @@ function editConfirmedRow(row) {
   const weekday = String(row['星期'] || '') || guessWeekday(dateVal) || '';
   block.querySelector('.f-weekday').value = weekday;
   block.querySelector('.f-weekday-display').textContent = weekday ? `（${weekday}）` : '';
-  if (!isDay) block.querySelector('.f-period').value = periodRaw;
-  block.querySelector('.f-class').value = String(row['班級'] || '');
-  block.querySelector('.f-subject').value = String(row['科目'] || '').replace(/、/g, ',');
-  block.querySelector('.f-teacher').value = String(row['授課教師'] || '').replace(/老師$/, '');
+
+  // 代課老師（指定老師模式）
+  const specifyRadio = block.querySelector('input[type="radio"][value="specify"]');
+  if (specifyRadio) { specifyRadio.checked = true; updateTeacherMode(block); }
   block.querySelector('.f-sub-teacher').value = String(row['代課教師'] || '').replace(/老師$/, '');
+
+  if (isKinder) {
+    const kinderTeacherEl = block.querySelector('.f-teacher-kinder');
+    if (kinderTeacherEl) kinderTeacherEl.value = String(row['授課教師'] || '').replace(/老師$/, '');
+    const periodStr = String(row['節次或日代'] || '');
+    const timeMatch = periodStr.match(/(\d{1,2}:\d{2})[–\-~](\d{1,2}:\d{2})/);
+    if (timeMatch) {
+      const startEl = block.querySelector('.f-kinder-start');
+      const endEl = block.querySelector('.f-kinder-end');
+      if (startEl) startEl.value = timeMatch[1];
+      if (endEl) endEl.value = timeMatch[2];
+    }
+  } else {
+    if (!isDay) block.querySelector('.f-period').value = periodRaw;
+    block.querySelector('.f-class').value = String(row['班級'] || '');
+    block.querySelector('.f-subject').value = String(row['科目'] || '').replace(/、/g, ',');
+    block.querySelector('.f-teacher').value = String(row['授課教師'] || '').replace(/老師$/, '');
+  }
 
   const periodCountEl = block.querySelector('.f-period-count');
   if (periodCountEl) periodCountEl.value = String(row['代課節數'] || '');
