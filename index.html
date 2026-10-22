@@ -890,6 +890,7 @@ function updateStatusDot(state) {
 /* ── type management ── */
 let itemCount = 0;
 let editingRowId = '';
+let editingRowData = null;
 
 function setConfirmedEditMode(active) {
   document.getElementById('copyMsgBtn').style.display = active ? 'none' : '';
@@ -1936,6 +1937,7 @@ function editConfirmedRow(row) {
   block.querySelector('.f-note').value = String(row['備註'] || '');
 
   editingRowId = String(row['id'] || '');
+  editingRowData = row;
   setConfirmedEditMode(true);
   updateSettleMonthFromItems();
   document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
@@ -1953,7 +1955,7 @@ async function saveConfirmedEdit() {
     狀態: '已確認',
     結算月份: getVal('settleMonth'),
     代課類型: item.type === 'period' ? '節代' : item.type === 'kinder' ? (item.kinderAllDay ? '日代' : '節代') : '日代',
-    單位: item.type === 'kinder' ? '幼兒園' : '',
+    單位: item.type === 'kinder' ? '幼兒園' : (editingRowData && isKinderRow(editingRowData) ? '幼兒園' : ''),
     代課教師: item.subTeacher ? resolveTeacherName(item.subTeacher.replace(/老師$/, '')) + '老師' : '',
     日期: formatDateText(item.date),
     星期: item.weekday,
