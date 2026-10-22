@@ -2602,6 +2602,7 @@ async function generateReport(type) {
     const status = String(r['狀態'] || '').trim();
     return months.includes(r['結算月份']) &&
       isKinderRow(r) &&
+      r['代課類型'] === type &&
       (status === '已確認' || status === '已完成');
   });
 
