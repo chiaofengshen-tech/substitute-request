@@ -2589,8 +2589,10 @@ async function generateReport(type) {
   const monthRaw = document.getElementById('reportMonth').value.trim();
   if (!monthRaw) { showToast('請先填寫結算月份', true); return; }
   showToast('產生中…');
-  const rows = await fetchAllRows();
-  if (!rows) return;
+  // 刷新 allRows 確保資料最新，再用 allRows 生成報表（避免 GAS 延遲問題）
+  await fetchAndRender();
+  const rows = allRows;
+  if (!rows || rows.length === 0) return;
 
   const rawParts = monthRaw.split(/[+＋、,，]/).map(s => s.trim()).filter(Boolean);
   // 若某段沒有「年」，自動補第一段的年份前綴
