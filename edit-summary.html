@@ -163,9 +163,9 @@
             <th>請假老師</th>
             <th>代課老師</th>
             <th>節次／時段</th>
-            <th>幼兒園？</th>
             <th>假別</th>
             <th>摘要</th>
+            <th>幼兒園？</th>
           </tr>
         </thead>
         <tbody id="editBody"></tbody>
@@ -299,9 +299,6 @@ function renderTable(rows) {
       <td class="readonly">${String(row['授課教師'] || '').replace(/老師$/, '')}</td>
       <td class="readonly">${String(row['代課教師'] || '').replace(/老師$/, '')}</td>
       <td class="readonly">${period}</td>
-      <td style="text-align:center;">
-        <input type="checkbox" class="f-unit" data-id="${id}" ${unitVal === '幼兒園' ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;">
-      </td>
       <td>
         <select class="f-leave" data-id="${id}">
           ${LEAVE_OPTIONS.map(o => `<option value="${o}" ${o === leaveVal ? 'selected' : ''}>${o || '（未填）'}</option>`).join('')}
@@ -309,6 +306,9 @@ function renderTable(rows) {
       </td>
       <td>
         <textarea class="f-summary" data-id="${id}" rows="1">${summaryVal}</textarea>
+      </td>
+      <td style="text-align:center;">
+        <input type="checkbox" class="f-unit" data-id="${id}" ${unitVal === '幼兒園' ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;">
       </td>
     `;
 
