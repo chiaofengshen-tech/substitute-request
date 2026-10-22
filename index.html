@@ -2253,15 +2253,12 @@ function renderList() {
     const editBtn = (status === '已確認' || status === '已完成')
       ? `<button class="edit-record-btn" data-id="${rowId}" title="修改這筆資料">✎</button>`
       : '';
-    const kinderBtn = (status === '已確認' || status === '已完成') && !isKinderRow(row)
-      ? `<button class="set-kinder-btn" data-id="${rowId}" title="標記為幼兒園" style="font-size:0.75rem;padding:2px 5px;background:#e8d8f5;border:1px solid #b89ad8;border-radius:4px;cursor:pointer;color:#6a3fa0;">幼兒園</button>`
-      : '';
     const refillBtn = status === '無法代課'
       ? `<button class="refill-form-btn" data-id="${rowId}" title="把這筆資料帶回表單重填">↩ 帶回表單</button>`
       : '';
     const actionButtons = status.indexOf('已刪除') === 0
       ? `<button class="restore-record-btn cancel-refind-btn" data-id="${rowId}" title="復原這筆資料">↩ 復原</button><button class="permanent-delete-btn btn-permanent-delete" data-id="${rowId}" title="永久刪除這筆資料">永久刪除</button>`
-      : `<button class="del-btn" data-id="${rowId}" title="移到已刪除紀錄">🗑</button>${editBtn}${kinderBtn}${cancelBtn}${refillBtn}`;
+      : `<button class="del-btn" data-id="${rowId}" title="移到已刪除紀錄">🗑</button>${editBtn}${cancelBtn}${refillBtn}`;
     return `<tr><td style="white-space:nowrap;">${actionButtons}</td>${tds}</tr>`;
   }
 
@@ -2323,29 +2320,7 @@ function renderList() {
     });
   });
 
-  container.querySelectorAll('.set-kinder-btn').forEach(btn => {
-    btn.addEventListener('click', async function() {
-      const id = this.dataset.id;
-      if (!gasUrl) { showToast('請先設定 Web App URL', true); return; }
-      this.disabled = true;
-      try {
-        const res = await fetch(gasUrl, {
-          method: 'POST',
-          body: JSON.stringify({ action: 'update', id, changes: { 單位: '幼兒園', 更新時間: nowStr() } }),
-          redirect: 'follow'
-        });
-        const json = await res.json();
-        if (!json.ok) throw new Error(json.error || '更新失敗');
-        showToast('已標記為幼兒園 ✓');
-        await fetchAndRender();
-      } catch(e) {
-        showToast('失敗：' + e.message, true);
-        this.disabled = false;
-      }
-    });
-  });
-
-  container.querySelectorAll('.refill-form-btn').forEach(btn => {
+container.querySelectorAll('.refill-form-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       const id = this.dataset.id;
       const row = allRows.find(r => String(r['id'] || '') === id);
