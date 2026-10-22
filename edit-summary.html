@@ -287,7 +287,11 @@ function renderTable(rows) {
     const period = String(row['節次或日代'] || '');
     const leaveVal = String(row['假別'] || '');
     const summaryVal = String(row['摘要'] || '');
-    const unitVal = String(row['單位'] || '國小');
+    // 若判斷為幼兒園但 單位 欄位尚未更新，自動補上並標記為待儲存
+    const unitVal = kinder ? '幼兒園' : String(row['單位'] || '國小');
+    if (kinder && String(row['單位'] || '') !== '幼兒園') {
+      changedIds.add(id); // 自動排入儲存清單
+    }
 
     tr.innerHTML = `
       <td class="readonly">${fmtDate(row['日期'])}</td>
