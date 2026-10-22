@@ -2307,8 +2307,14 @@ function renderList() {
   });
 
   container.querySelectorAll('.edit-record-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
+    btn.addEventListener('click', async function() {
       const id = this.dataset.id;
+      // 先從 GAS 抓最新資料，避免覆蓋掉在其他頁面的修改
+      try {
+        const res = await fetch(gasUrl + '?action=get', { redirect: 'follow' });
+        const json = await res.json();
+        if (json.rows) allRows = json.rows;
+      } catch(e) { /* 若失敗則用現有快取 */ }
       const row = allRows.find(r => String(r['id'] || '') === id);
       if (row) editConfirmedRow(row);
     });
