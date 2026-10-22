@@ -146,7 +146,7 @@
   <div class="card">
     <div class="top-bar">
       <a href="index.html" class="btn btn-back">← 返回</a>
-      <input type="text" id="monthInput" class="month-input" placeholder="例：115年10月">
+      <input type="text" id="monthInput" class="month-input" placeholder="例：10 或 10月">
       <button class="btn btn-primary" id="loadBtn">載入</button>
       <button class="btn btn-save" id="saveBtn" style="display:none;">💾 儲存全部修改</button>
       <span id="statusMsg" style="font-size:0.85rem;color:var(--muted);"></span>
@@ -204,8 +204,25 @@ function isKinder(row) {
          String(row['摘要'] || '').includes('幼兒園');
 }
 
+function normalizeMonth(raw) {
+  raw = raw.trim();
+  // 純數字 "10" → 自動補民國年
+  const numOnly = raw.match(/^(\d{1,2})$/);
+  if (numOnly) {
+    const rocYear = new Date().getFullYear() - 1911;
+    return rocYear + '年' + numOnly[1] + '月';
+  }
+  // "10月" → 自動補民國年
+  const monthOnly = raw.match(/^(\d{1,2})月$/);
+  if (monthOnly) {
+    const rocYear = new Date().getFullYear() - 1911;
+    return rocYear + '年' + monthOnly[1] + '月';
+  }
+  return raw;
+}
+
 async function loadData() {
-  const month = document.getElementById('monthInput').value.trim();
+  const month = normalizeMonth(document.getElementById('monthInput').value);
   if (!month) { showToast('請填寫月份', true); return; }
   if (!gasUrl) { showToast('請先在主頁面設定 Web App URL', true); return; }
 
