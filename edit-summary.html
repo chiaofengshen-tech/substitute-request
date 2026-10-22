@@ -346,7 +346,7 @@ async function saveAll() {
     try {
       const res = await fetch(gasUrl, {
         method: 'POST',
-        body: JSON.stringify({ action: 'update', id, changes: { 單位: unit, 假別: leave, 摘要: summary, 更新時間: new Date().toLocaleString('zh-TW') } }),
+        body: JSON.stringify({ action: 'update', id, changes: Object.assign({ 單位: unit, 假別: leave, 摘要: summary, 更新時間: new Date().toLocaleString('zh-TW') }, unit === '幼兒園' ? { 代課類型: '幼兒園' } : {}) }),
         redirect: 'follow'
       });
       const json = await res.json();
