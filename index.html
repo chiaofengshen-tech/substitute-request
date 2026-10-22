@@ -2729,6 +2729,7 @@ async function generateReport(type) {
         const start = rowNum;
         const end = rowNum + tRows.length - 1;
         const totalHours = tRows.reduce((s, r) => s + kinderHoursOf(r), 0);
+        const info = getTeacherInfo(name);
 
         tRows.forEach((r, idx) => {
           const row = ws.getRow(rowNum); row.height = 28.5;
@@ -2742,6 +2743,9 @@ async function generateReport(type) {
           setCell(row, 6, Number(r['代課日數']) || null);
           setCell(row, 7, Number(r['導師日數']) || null);
           if (idx === 0) setCell(row, 8, tRows.reduce((s, r2) => s + (Number(r2['代課日數']) || 0), 0) || null);
+          if (idx === 0) setCell(row, 9, info['薪俸'] ? Number(info['薪俸']) : null);
+          if (idx === 0) setCell(row, 10, info['學歷'] || null, fMed, aCW);
+          if (idx === 0) setCell(row, 11, info['教師證'] || null, fMed, aCW);
           for (let c = 1; c <= 12; c++) row.getCell(c).fill = kinderFill;
           rowNum++;
         });
