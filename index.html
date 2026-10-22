@@ -2600,10 +2600,12 @@ async function generateReport(type) {
   // 幼兒園（節代和日代都分開）
   const kinderFiltered = rows.filter(function(r) {
     const status = String(r['狀態'] || '').trim();
-    return months.includes(r['結算月份']) &&
-      isKinderRow(r) &&
-      r['代課類型'] === type &&
-      (status === '已確認' || status === '已完成');
+    if (!months.includes(r['結算月份'])) return false;
+    if (!isKinderRow(r)) return false;
+    if (!(status === '已確認' || status === '已完成')) return false;
+    // 節次欄有時間格式 → 節代；否則 → 日代
+    const hasTime = /\d{1,2}:\d{2}\s*[–\-~]\s*\d{1,2}:\d{2}/.test(String(r['節次或日代'] || ''));
+    return type === '節代' ? hasTime : !hasTime;
   });
 
   if (filtered.length === 0 && kinderFiltered.length === 0) {
