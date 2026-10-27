@@ -2589,7 +2589,8 @@ async function generateReport(type) {
   const monthRaw = document.getElementById('reportMonth').value.trim();
   if (!monthRaw) { showToast('請先填寫結算月份', true); return; }
   showToast('產生中…');
-  // 刷新 allRows 確保資料最新，再用 allRows 生成報表（避免 GAS 延遲問題）
+  // 刷新 allRows 確保資料最新；先等 2 秒讓 GAS 寫入傳播後再抓
+  await new Promise(r => setTimeout(r, 2000));
   await fetchAndRender();
   const rows = allRows;
   if (!rows || rows.length === 0) return;
