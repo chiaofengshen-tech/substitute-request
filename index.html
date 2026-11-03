@@ -2605,12 +2605,10 @@ async function generateReport(type) {
   const filtered = rows.filter(function(r) {
     const status = String(r['狀態'] || '').trim();
     const subName = stripTeacher(String(r['代課教師'] || ''));
-    const origName = stripTeacher(String(r['授課教師'] || ''));
     return months.includes(r['結算月份']) &&
       r['代課類型'] === type &&
       !isKinderRow(r) &&
       !HOURLY_TEACHERS.includes(subName) &&
-      !HOURLY_TEACHERS.includes(origName) &&
       (status === '已確認' || status === '已完成');
   });
   // 幼兒園（節代和日代都分開）
