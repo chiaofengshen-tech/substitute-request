@@ -2601,14 +2601,11 @@ async function generateReport(type) {
   const months = rawParts.map(s => /\d+年/.test(s) ? s : yearPrefix + s);
   const month = months[0]; // 用第一個月份當標題基準
 
-  const HOURLY_TEACHERS = ['王美珍', '王怡雯', '陳彥妤'];
   const filtered = rows.filter(function(r) {
     const status = String(r['狀態'] || '').trim();
-    const subName = stripTeacher(String(r['代課教師'] || ''));
     return months.includes(r['結算月份']) &&
       r['代課類型'] === type &&
       !isKinderRow(r) &&
-      !HOURLY_TEACHERS.includes(subName) &&
       (status === '已確認' || status === '已完成');
   });
   // 幼兒園（節代和日代都分開）
