@@ -760,6 +760,7 @@
         <button class="btn-success" id="genDayBtn">下載日代一覽表</button>
         <button class="btn-secondary" id="genCalendarBtn">📅 下載代課紀錄單</button>
         <button class="btn-secondary" id="genDetailBtn">📋 回兼明細</button>
+        <button class="btn-secondary" id="genHourlyBtn">🕐 鐘點代課記錄</button>
         <a href="edit-summary.html" class="btn-secondary" style="display:inline-block;text-decoration:none;text-align:center;">✏️ 編輯摘要</a>
         <button class="btn-secondary" id="archiveBtn">📦 封存本月資料</button>
       </div>
@@ -2909,6 +2910,109 @@ document.getElementById('genPeriodBtn').addEventListener('click', function() { g
 document.getElementById('genDayBtn').addEventListener('click', function() { generateReport('日代'); });
 document.getElementById('genCalendarBtn').addEventListener('click', generateCalendarDoc);
 document.getElementById('genDetailBtn').addEventListener('click', generateDetailReport);
+document.getElementById('genHourlyBtn').addEventListener('click', generateHourlyReport);
+
+async function generateHourlyReport() {
+  const HOURLY_TEACHERS = ['王美珍', '王怡雯', '陳彥妤'];
+  const monthRaw = document.getElementById('reportMonth').value.trim();
+  if (!monthRaw) { showToast('請先填寫結算月份', true); return; }
+  showToast('產生中…');
+  await new Promise(r => setTimeout(r, 2000));
+  await Promise.all([fetchAndRender(), loadTeachers()]);
+  const rows = allRows;
+  if (!rows || rows.length === 0) return;
+
+  const rawParts = monthRaw.split(/[+＋、,，]/).map(s => s.trim()).filter(Boolean);
+  const yearPrefix = (rawParts[0].match(/^(\d+年)/) || [])[1] || '';
+  const months = rawParts.map(s => /\d+年/.test(s) ? s : yearPrefix + s);
+  const month = months[0];
+
+  const wb = new ExcelJS.Workbook();
+  const thin = { style: 'thin' };
+  const allBorder = { top: thin, bottom: thin, left: thin, right: thin };
+  const fTitle = { name: '標楷體', size: 14, bold: true };
+  const fHead  = { name: '標楷體', size: 13, bold: true };
+  const fData  = { name: '標楷體', size: 13 };
+  const aC = { horizontal: 'center', vertical: 'middle' };
+  const aL = { horizontal: 'left', vertical: 'middle' };
+  const PURPLE = 'FF7030A0';
+  const YELLOW = 'FFFFF0C0';
+
+  HOURLY_TEACHERS.forEach(teacherName => {
+    // 找這位老師請假、別人幫她代的記錄（她是授課教師）
+    const subRecs = rows.filter(r => {
+      const status = String(r['狀態'] || '').trim();
+      const orig = stripTeacher(String(r['授課教師'] || ''));
+      return months.includes(r['結算月份']) &&
+             orig === teacherName &&
+             (status === '已確認' || status === '已完成');
+    });
+
+    const ws = wb.addWorksheet(teacherName);
+    ws.pageSetup.paperSize = 9;
+    ws.pageSetup.orientation = 'portrait';
+    ws.pageSetup.fitToPage = true;
+    ws.pageSetup.fitToWidth = 1;
+    ws.pageSetup.fitToHeight = 0;
+    ws.pageSetup.margins = { left: 0.5, right: 0.5, top: 0.7, bottom: 0.7, header: 0.3, footer: 0.3 };
+    ws.columns = [{width:10},{width:6},{width:16},{width:12},{width:30}];
+    ws.views = [{ showGridLines: false }];
+
+    // 標題
+    const r1 = ws.getRow(1); r1.height = 21;
+    const t = r1.getCell(1);
+    t.value = buildTitle(month, '鐘點') + '請假代課記錄＿' + teacherName + '老師';
+    t.font = fTitle; t.alignment = aC;
+    ws.mergeCells('A1:E1');
+
+    // 表頭
+    const r2 = ws.getRow(2); r2.height = 21;
+    ['日期','星期','節次／時段','代課教師','摘要'].forEach((h, i) => {
+      const c = r2.getCell(i+1);
+      c.value = h; c.font = { name: '標楷體', size: 13, bold: true, color: { argb: PURPLE } };
+      c.alignment = aC; c.border = allBorder;
+    });
+
+    if (subRecs.length === 0) {
+      const r3 = ws.getRow(3); r3.height = 24;
+      const c = r3.getCell(1);
+      c.value = '本月無代課記錄';
+      c.font = { name: '標楷體', size: 13, color: { argb: 'FF888888' } };
+      c.alignment = aC;
+      ws.mergeCells('A3:E3');
+    } else {
+      const fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8DC' } };
+      subRecs.sort((a, b) => String(a['日期'] || '').localeCompare(String(b['日期'] || '')));
+      subRecs.forEach((r, idx) => {
+        const row = ws.getRow(3 + idx); row.height = 24;
+        const cells = [
+          fmtDateShort(r['日期']),
+          r['星期'] || '',
+          r['節次或日代'] || '',
+          stripTeacher(r['代課教師'] || ''),
+          r['摘要'] || ''
+        ];
+        cells.forEach((v, i) => {
+          const c = row.getCell(i+1);
+          c.value = v; c.font = fData;
+          c.alignment = i === 4 ? aL : aC;
+          c.border = allBorder;
+          c.fill = fill;
+        });
+      });
+    }
+  });
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = monthRaw.replace(/[+＋、,，]/g, '') + '鐘點教師請假代課記錄.xlsx';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('已下載 ' + monthRaw + ' 鐘點教師請假代課記錄.xlsx');
+}
 
 function renderCalendarMonthBlock(ws, rowNum, month, filtered) {
   const mMatch = month.match(/(\d+)年(\d+)月/);
