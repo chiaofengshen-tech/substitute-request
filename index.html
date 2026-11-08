@@ -350,6 +350,47 @@
   .badge-asked { background: #f2e6d8; color: var(--blue-dark); }
   .badge-done { background: #e8f9f0; color: #4caf82; }
   .badge-cancel { background: #fdeaea; color: #e05c5c; }
+  /* ── 週分組卡片列表 ── */
+  .week-group-header {
+    display: flex; align-items: center; gap: 8px;
+    background: #ede4d8; color: #6b4f30;
+    font-size: 0.78rem; font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 8px 8px 0 0;
+    border: 1px solid var(--border); border-bottom: none;
+    margin-top: 10px;
+  }
+  .week-group-header .wk-range { font-weight: 400; color: var(--muted); font-size: 0.74rem; }
+  .week-group-header .wk-count {
+    margin-left: auto; background: var(--blue-dark); color: white;
+    font-size: 0.7rem; padding: 1px 7px; border-radius: 10px;
+  }
+  .week-group-block {
+    border: 1px solid var(--border); border-radius: 0 0 8px 8px;
+    background: var(--card); overflow: hidden; margin-bottom: 2px;
+  }
+  .record-card-row {
+    display: flex; align-items: center; gap: 7px;
+    padding: 8px 10px; border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  .record-card-row:last-child { border-bottom: none; }
+  .rc-btns { display: flex; gap: 3px; flex-shrink: 0; }
+  .rc-status { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
+  .rc-status.ok { color: #2e8c50; }
+  .rc-status.warn { color: #c0680a; }
+  .rc-type { font-size: 0.78rem; color: var(--muted); flex-shrink: 0; min-width: 14px; }
+  .rc-teacher { font-weight: 600; flex-shrink: 0; min-width: 55px; font-size: 0.85rem; }
+  .rc-date { color: var(--muted); font-size: 0.78rem; flex-shrink: 0; }
+  .rc-weekday { color: var(--muted); font-size: 0.76rem; flex-shrink: 0; min-width: 14px; }
+  .rc-period { color: var(--text); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .month-group-header-card {
+    cursor: pointer; background: #f0e8da; color: var(--blue-dark);
+    font-weight: 700; font-size: 0.85rem;
+    padding: 7px 12px; border-radius: 8px; margin-bottom: 2px;
+    user-select: none; touch-action: manipulation;
+  }
+
   .empty-state {
     text-align: center;
     color: var(--muted);
@@ -2235,51 +2276,93 @@ function renderList() {
   const ths = ['操作'].concat(VISIBLE_COLS).map(c => `<th>${c}</th>`).join('');
   const colCount = VISIBLE_COLS.length + 1;
 
-  function makeRowHtml(row) {
-    const rowId = row['id'] || '';
-    const status = row['狀態'] ? String(row['狀態']) : '';
-    const tds = VISIBLE_COLS.map(c => {
-      const v = row[c] != null ? String(row[c]) : '';
-      if (c === '狀態') return `<td><span class="status-badge ${badgeClass(v)}">${v}</span></td>`;
-      if (c === '日期') {
-        const m = v.match(/(?:\d+\/)?(\d{1,2})\/(\d{1,2})/);
-        return `<td>${m ? m[1] + '/' + m[2] : v}</td>`;
-      }
-      return `<td>${v}</td>`;
-    }).join('');
-    const cancelBtn = (status === '已確認' || status === '已詢問')
-      ? `<button class="cancel-refind-btn" data-id="${rowId}" title="取消並重新找老師">↩</button>`
-      : '';
-    const editBtn = (status === '已確認' || status === '已完成')
-      ? `<button class="edit-record-btn" data-id="${rowId}" title="修改這筆資料">✎</button>`
-      : '';
-    const refillBtn = status === '無法代課'
-      ? `<button class="refill-form-btn" data-id="${rowId}" title="把這筆資料帶回表單重填">↩ 帶回表單</button>`
-      : '';
-    const actionButtons = status.indexOf('已刪除') === 0
-      ? `<button class="restore-record-btn cancel-refind-btn" data-id="${rowId}" title="復原這筆資料">↩ 復原</button><button class="permanent-delete-btn btn-permanent-delete" data-id="${rowId}" title="永久刪除這筆資料">永久刪除</button>`
-      : `<button class="del-btn" data-id="${rowId}" title="移到已刪除紀錄">🗑</button>${editBtn}${cancelBtn}${refillBtn}`;
-    return `<tr><td style="white-space:nowrap;">${actionButtons}</td>${tds}</tr>`;
+  function getWeekInfo(dateStr) {
+    // dateStr 格式: 2024/11/05 或 11/05
+    const m = String(dateStr || '').match(/(?:\d+\/)?(\d{1,2})\/(\d{1,2})/);
+    if (!m) return { weekNum: 0, monStr: '', friStr: '' };
+    const mo = parseInt(m[1], 10), d = parseInt(m[2], 10);
+    const now = new Date();
+    const year = now.getFullYear();
+    const date = new Date(year, mo - 1, d);
+    const dow = date.getDay(); // 0=Sun,1=Mon,...,6=Sat
+    const diffToMon = dow === 0 ? -6 : 1 - dow;
+    const mon = new Date(date); mon.setDate(d + diffToMon);
+    const fri = new Date(mon); fri.setDate(mon.getDate() + 4);
+    const fmt = dt => (dt.getMonth()+1) + '/' + dt.getDate();
+    const weekNum = Math.ceil(mon.getDate() / 7);
+    return { weekNum, monStr: fmt(mon), friStr: fmt(fri), monKey: mon.getMonth() + '/' + mon.getDate() };
   }
 
-  let trs = '';
+  function makeCardHtml(row) {
+    const rowId = row['id'] || '';
+    const status = row['狀態'] ? String(row['狀態']) : '';
+    const isConfirmed = status === '已確認' || status === '已完成';
+    const statusIcon = isConfirmed
+      ? `<span class="rc-status ok">✓</span>`
+      : `<span class="rc-status warn">!</span>`;
+    const type = String(row['代課類型'] || '');
+    const typeChar = type === '節代' ? '節' : type === '日代' ? '日' : type === '幼兒園' ? '幼' : type.slice(0,1);
+    const teacher = String(row['代課教師'] || '').replace(/老師$/, '');
+    const dateRaw = String(row['日期'] || '');
+    const dm = dateRaw.match(/(?:\d+\/)?(\d{1,2})\/(\d{1,2})/);
+    const dateShort = dm ? dm[1] + '/' + dm[2] : dateRaw;
+    const weekday = row['星期'] || '';
+    const period = row['節次或日代'] || '';
+    const cancelBtn = (status === '已確認' || status === '已詢問')
+      ? `<button class="cancel-refind-btn" data-id="${rowId}" title="取消並重新找老師">↩</button>` : '';
+    const editBtn = (status === '已確認' || status === '已完成')
+      ? `<button class="edit-record-btn" data-id="${rowId}" title="修改這筆資料">✎</button>` : '';
+    const refillBtn = status === '無法代課'
+      ? `<button class="refill-form-btn" data-id="${rowId}" title="帶回表單">↩</button>` : '';
+    const actionButtons = status.indexOf('已刪除') === 0
+      ? `<button class="restore-record-btn cancel-refind-btn" data-id="${rowId}" title="復原">↩</button><button class="permanent-delete-btn btn-permanent-delete" data-id="${rowId}" title="永久刪除">✕</button>`
+      : `<button class="del-btn" data-id="${rowId}" title="移到已刪除">🗑</button>${editBtn}${cancelBtn}${refillBtn}`;
+    return `<div class="record-card-row">
+      <div class="rc-btns">${actionButtons}</div>
+      ${statusIcon}
+      <span class="rc-type">${typeChar}</span>
+      <span class="rc-teacher">${teacher}</span>
+      <span class="rc-date">${dateShort}</span>
+      <span class="rc-weekday">${weekday}</span>
+      <span class="rc-period">${period}</span>
+    </div>`;
+  }
+
+  let html = '';
   monthOrder.forEach(m => {
     const mRows = monthGroups[m];
     const isCollapsed = !!collapsedMonths[m];
     const arrow = isCollapsed ? '▶' : '▼';
-    trs += `<tr class="month-group-header" data-month="${m}" style="cursor:pointer;background:var(--surface-alt,#f5ede3);">
-      <td colspan="${colCount}" style="padding:6px 12px;font-weight:bold;color:var(--accent);user-select:none;touch-action:manipulation;">
-        ${arrow} ${m}（${mRows.length} 筆）
-      </td>
-    </tr>`;
+    html += `<div class="month-group-header-card" data-month="${m}">${arrow} ${m}（${mRows.length} 筆）</div>`;
     if (!isCollapsed) {
-      trs += mRows.map(makeRowHtml).join('');
+      // 週分組
+      const weekOrder = [], weekGroups = {};
+      mRows.forEach(row => {
+        const wi = getWeekInfo(row['日期']);
+        const key = wi.monKey;
+        if (!weekGroups[key]) { weekGroups[key] = { ...wi, rows: [] }; weekOrder.push(key); }
+        weekGroups[key].rows.push(row);
+      });
+      weekOrder.forEach((key, idx) => {
+        const wg = weekGroups[key];
+        const weekdayNames = ['日','一','二','三','四','五','六'];
+        const monDate = new Date(new Date().getFullYear(), parseInt(wg.monStr)-1, parseInt(wg.monStr.split('/')[1]));
+        const friDate = new Date(new Date().getFullYear(), parseInt(wg.friStr)-1, parseInt(wg.friStr.split('/')[1]));
+        const monDow = weekdayNames[monDate.getDay()];
+        const friDow = weekdayNames[friDate.getDay()];
+        html += `<div class="week-group-header">
+          第${['一','二','三','四','五'][idx] || (idx+1)}週
+          <span class="wk-range">${wg.monStr}（${monDow}）－${wg.friStr}（${friDow}）</span>
+          <span class="wk-count">${wg.rows.length} 筆</span>
+        </div>
+        <div class="week-group-block">${wg.rows.map(makeCardHtml).join('')}</div>`;
+      });
     }
   });
 
-  container.innerHTML = `<div class="table-wrap"><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+  container.innerHTML = html;
 
-  container.querySelectorAll('.month-group-header').forEach(hdr => {
+  container.querySelectorAll('.month-group-header-card').forEach(hdr => {
     function toggleMonth(e) {
       e.preventDefault();
       const m = this.dataset.month;
