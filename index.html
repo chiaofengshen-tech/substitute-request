@@ -2303,6 +2303,7 @@ function renderList() {
     const type = String(row['代課類型'] || '');
     const typeChar = type === '節代' ? '節' : type === '日代' ? '日' : type === '幼兒園' ? '幼' : type.slice(0,1);
     const teacher = String(row['代課教師'] || '').replace(/老師$/, '');
+    const orig = String(row['授課教師'] || '').replace(/老師$/, '');
     const dateRaw = String(row['日期'] || '');
     const dm = dateRaw.match(/(?:\d+\/)?(\d{1,2})\/(\d{1,2})/);
     const dateShort = dm ? dm[1] + '/' + dm[2] : dateRaw;
@@ -2322,6 +2323,8 @@ function renderList() {
       ${statusIcon}
       <span class="rc-type">${typeChar}</span>
       <span class="rc-teacher">${teacher}</span>
+      <span class="rc-type" style="color:var(--muted);font-size:0.72rem;">代</span>
+      <span class="rc-teacher" style="min-width:45px;">${orig}</span>
       <span class="rc-date">${dateShort}</span>
       <span class="rc-weekday">${weekday}</span>
       <span class="rc-period">${period}</span>
